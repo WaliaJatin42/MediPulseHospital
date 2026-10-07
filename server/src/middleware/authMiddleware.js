@@ -1,0 +1,82 @@
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const logger = require('../utils/logger');
+
+const protect = async (req, res, next) => {
+  try {
+    let token = req.cookies.accessToken;
+
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      logger.warn(`[Auth Middleware] Access denied: Access token missing for route ${req.method} ${req.originalUrl} from IP ${req.ip}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized, access token missing'
+      });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id);
+
+      if (!user) {
+        logger.warn(`[Auth Middleware] Access denied: User for token ID ${decoded.id} no longer exists`);
+        return res.status(401).json({
+          success: false,
+          message: 'User belonging to this token no longer exists'
+        });
+      }
+
+      if (!user.isActive) {
+        logger.warn(`[Auth Middleware] Access denied: Account ${user.email} is deactivated`);
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deactivated. Please contact your hospital administrator.'
+        });
+      }
+
+      req.user = user;
+      logger.debug(`[Auth Middleware] Authenticated ${user.email} (${user.role}) for ${req.method} ${req.originalUrl}`);
+      next();
+    } catch (jwtError) {
+      logger.warn(`[Auth Middleware] Access denied: Token invalid or expired (${jwtError.message}) for ${req.method} ${req.originalUrl}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Token invalid or expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+  } catch (error) {
+    logger.error(`[Auth Middleware Error] ${error.message}`, { stack: error.stack });
+    next(error);
+  }
+};
+
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      logger.warn(`[Authorize Middleware] Access denied: Unauthenticated request for restricted route ${req.method} ${req.originalUrl}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized'
+      });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      logger.warn(`[Authorize Middleware] Access denied for user ${req.user.email} (Role: '${req.user.role}'). Allowed roles: [${roles.join(', ')}] on route ${req.method} ${req.originalUrl}`);
+      return res.status(403).json({
+        success: false,
+        message: `User role '${req.user.role}' is not authorized to perform this action`
+      });
+    }
+
+    logger.debug(`[Authorize Middleware] Authorization granted for user ${req.user.email} (${req.user.role})`);
+    next();
+  };
+};
+
+module.exports = { protect, authorize };
+
