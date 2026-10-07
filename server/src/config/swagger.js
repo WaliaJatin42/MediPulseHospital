@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'MediPulse Hospital User Management API',
+      title: 'MediPulse Hospital User Management API v1',
       version: '1.0.0',
-      description: 'Full-stack User Management System for Hospital Staff (SuperAdmin, Admin, Doctor, Compounder, Pharmacist, Nurse, Lab Technician) with Google OAuth 2.0 & JWT Authentication, Winston Daily Rotating Logging, and Role Hierarchy Security.',
+      description: 'User Management System Backend API v1 providing Authentication (Login, Logout, Refresh, Google OAuth 2.0), User Profile retrieval by token, User CRUD (SuperAdmin manages all users; Admin manages only users created by them), and Health Check.',
       contact: {
         name: 'MediPulse Hospital IT Support',
         email: 'support@medipulse.hospital'
@@ -21,15 +21,15 @@ const options = {
     tags: [
       {
         name: 'Authentication',
-        description: 'Endpoints for staff signup, login, Google OAuth 2.0, token refresh, and logout'
+        description: 'Endpoints for staff login, Google OAuth 2.0, token refresh, and logout'
       },
       {
         name: 'User Profile',
-        description: 'Endpoints for viewing and updating logged-in staff profile details and changing passwords'
+        description: 'Endpoint for fetching details of logged-in user via token'
       },
       {
-        name: 'Admin Management',
-        description: 'Role hierarchy management for Admin / SuperAdmin to view, update, and manage staff accounts'
+        name: 'User Management',
+        description: 'CRUD operations for staff accounts (SuperAdmin sees all users; Admin manages only users created by them)'
       },
       {
         name: 'Health Check',
@@ -50,193 +50,10 @@ const options = {
           bearerFormat: 'JWT',
           description: 'Authorization header Bearer token (Format: `Bearer <token>`)'
         }
-      },
-      schemas: {
-        User: {
-          type: 'object',
-          properties: {
-            _id: { type: 'string', example: '65c8f1e29a34b2811a45d0f1' },
-            name: { type: 'string', example: 'Dr. Sarah Jenkins' },
-            email: { type: 'string', example: 'doctor@hospital.com' },
-            role: { type: 'string', enum: ['user', 'admin', 'superadmin'], example: 'user' },
-            designation: {
-              type: 'string',
-              enum: ['Doctor', 'Compounder', 'Pharmacist', 'Nurse', 'Lab Technician', 'Administrator', 'Staff', 'Other'],
-              example: 'Doctor'
-            },
-            department: { type: 'string', example: 'Cardiology' },
-            phone: { type: 'string', example: '+1 (555) 000-0003' },
-            avatar: { type: 'string', example: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150' },
-            authProvider: { type: 'string', enum: ['local', 'google'], example: 'local' },
-            isActive: { type: 'boolean', example: true },
-            lastLogin: { type: 'string', format: 'date-time', nullable: true, example: '2026-10-07T22:45:00.000Z' },
-            createdAt: { type: 'string', format: 'date-time', example: '2026-10-07T22:00:00.000Z' },
-            updatedAt: { type: 'string', format: 'date-time', example: '2026-10-07T22:30:00.000Z' }
-          }
-        },
-        UserSignup: {
-          type: 'object',
-          required: ['name', 'email', 'password'],
-          properties: {
-            name: { type: 'string', example: 'Dr. Sarah Jenkins' },
-            email: { type: 'string', format: 'email', example: 'doctor@hospital.com' },
-            password: { type: 'string', format: 'password', example: 'Doctor123!' },
-            designation: { type: 'string', example: 'Doctor' },
-            department: { type: 'string', example: 'Cardiology' },
-            phone: { type: 'string', example: '+1 (555) 000-0003' }
-          }
-        },
-        UserLogin: {
-          type: 'object',
-          required: ['email', 'password'],
-          properties: {
-            email: { type: 'string', format: 'email', example: 'admin@hospital.com' },
-            password: { type: 'string', format: 'password', example: 'Admin123!' }
-          }
-        },
-        UserUpdate: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', example: 'Dr. Sarah Jenkins' },
-            designation: { type: 'string', example: 'Doctor' },
-            department: { type: 'string', example: 'Pediatrics' },
-            phone: { type: 'string', example: '+1 (555) 000-9999' },
-            avatar: { type: 'string', example: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d' },
-            currentPassword: { type: 'string', example: 'Doctor123!' },
-            newPassword: { type: 'string', example: 'NewDoctor456!' }
-          }
-        },
-        AdminUserUpdate: {
-          type: 'object',
-          properties: {
-            role: { type: 'string', enum: ['user', 'admin', 'superadmin'], example: 'admin' },
-            designation: { type: 'string', example: 'Administrator' },
-            department: { type: 'string', example: 'Management' },
-            isActive: { type: 'boolean', example: true }
-          }
-        },
-        AuthResponse: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean', example: true },
-            message: { type: 'string', example: 'Authentication successful' },
-            accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-            user: { $ref: '#/components/schemas/User' }
-          }
-        },
-        PaginatedUsersResponse: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean', example: true },
-            count: { type: 'integer', example: 10 },
-            totalUsers: { type: 'integer', example: 45 },
-            totalPages: { type: 'integer', example: 5 },
-            currentPage: { type: 'integer', example: 1 },
-            users: {
-              type: 'array',
-              items: { $ref: '#/components/schemas/User' }
-            }
-          }
-        },
-        PaginatedLogsResponse: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean', example: true },
-            count: { type: 'integer', example: 10 },
-            totalLogs: { type: 'integer', example: 120 },
-            totalPages: { type: 'integer', example: 12 },
-            currentPage: { type: 'integer', example: 1 },
-            limit: { type: 'integer', example: 10 },
-            date: { type: 'string', example: '2026-10-07' },
-            filtersApplied: {
-              type: 'object',
-              properties: {
-                level: { type: 'string', example: 'all' },
-                search: { type: 'string', nullable: true, example: null }
-              }
-            },
-            logs: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  level: { type: 'string', example: 'info' },
-                  message: { type: 'string', example: '[Auth Controller] User logged in successfully...' },
-                  timestamp: { type: 'string', example: '2026-10-07 22:45:00' }
-                }
-              }
-            }
-          }
-        },
-        SuccessResponse: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean', example: true },
-            message: { type: 'string', example: 'Operation completed successfully' }
-          }
-        },
-        ErrorResponse: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean', example: false },
-            message: { type: 'string', example: 'Error description message' },
-            stack: { type: 'string', nullable: true, example: null }
-          }
-        },
-        ValidationErrorResponse: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean', example: false },
-            message: { type: 'string', example: 'Validation failed' },
-            errors: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  field: { type: 'string', example: 'email' },
-                  message: { type: 'string', example: 'Please provide a valid email address' }
-                }
-              }
-            }
-          }
-        },
-        HealthCheckResponse: {
-          type: 'object',
-          properties: {
-            status: { type: 'string', example: 'ok' },
-            message: { type: 'string', example: 'Hospital User Management API is running' }
-          }
-        }
       }
     },
     paths: {
-      '/api/admin/logs': {
-        get: {
-          summary: 'Retrieve system application logs in JSON format with pagination (Default 10 per page)',
-          tags: ['Admin Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          parameters: [
-            { in: 'query', name: 'page', schema: { type: 'integer', default: 1 }, description: 'Page number' },
-            { in: 'query', name: 'limit', schema: { type: 'integer', default: 10 }, description: 'Number of logs per page (Default 10, user configurable)' },
-            { in: 'query', name: 'pageSize', schema: { type: 'integer' }, description: 'Alias for limit' },
-            { in: 'query', name: 'level', schema: { type: 'string', enum: ['all', 'info', 'warn', 'error', 'debug'] }, description: 'Log level filter' },
-            { in: 'query', name: 'search', schema: { type: 'string' }, description: 'Text search in message or timestamp' },
-            { in: 'query', name: 'date', schema: { type: 'string' }, description: 'Log date YYYY-MM-DD (Default today)' }
-          ],
-          responses: {
-            200: {
-              description: 'Paginated JSON log entries',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/PaginatedLogsResponse' }
-                }
-              }
-            },
-            403: { description: 'Forbidden' }
-          }
-        }
-      },
-      '/api/health': {
+      '/api/v1/health': {
         get: {
           summary: 'Check API server health status',
           tags: ['Health Check'],
@@ -245,54 +62,28 @@ const options = {
               description: 'Server is healthy and responsive',
               content: {
                 'application/json': {
-                  schema: { $ref: '#/components/schemas/HealthCheckResponse' }
+                  example: {
+                    status: 'ok',
+                    message: 'Hospital User Management API v1 is running'
+                  }
                 }
               }
             }
           }
         }
       },
-      '/api/auth/signup': {
+      '/api/v1/auth/login': {
         post: {
-          summary: 'Register new hospital staff member',
+          summary: 'Authenticate superadmin or staff with email and password',
           tags: ['Authentication'],
           requestBody: {
             required: true,
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/UserSignup' }
-              }
-            }
-          },
-          responses: {
-            201: {
-              description: 'User registered successfully with httpOnly cookies set',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/AuthResponse' }
+                example: {
+                  email: 'superadmin@hospital.com',
+                  password: 'SuperAdmin123!'
                 }
-              }
-            },
-            400: {
-              description: 'Validation failure or email already exists',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/ValidationErrorResponse' }
-                }
-              }
-            }
-          }
-        }
-      },
-      '/api/auth/login': {
-        post: {
-          summary: 'Authenticate staff member with email and password',
-          tags: ['Authentication'],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/UserLogin' }
               }
             }
           },
@@ -301,7 +92,22 @@ const options = {
               description: 'Login successful',
               content: {
                 'application/json': {
-                  schema: { $ref: '#/components/schemas/AuthResponse' }
+                  example: {
+                    success: true,
+                    message: 'Login successful',
+                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                    user: {
+                      _id: '65c8f1e29a34b2811a45d0f1',
+                      name: 'Chief Medical Director',
+                      email: 'superadmin@hospital.com',
+                      role: 'superadmin',
+                      designation: 'Administrator',
+                      department: 'Executive Board',
+                      phone: '+1 (555) 000-0001',
+                      authProvider: 'local',
+                      isActive: true
+                    }
+                  }
                 }
               }
             },
@@ -309,7 +115,10 @@ const options = {
               description: 'Invalid email or password',
               content: {
                 'application/json': {
-                  schema: { $ref: '#/components/schemas/ErrorResponse' }
+                  example: {
+                    success: false,
+                    message: 'Invalid email or password'
+                  }
                 }
               }
             },
@@ -317,22 +126,17 @@ const options = {
               description: 'Account deactivated',
               content: {
                 'application/json': {
-                  schema: { $ref: '#/components/schemas/ErrorResponse' }
-                }
-              }
-            },
-            429: {
-              description: 'Too many authentication attempts',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/ErrorResponse' }
+                  example: {
+                    success: false,
+                    message: 'Your account has been deactivated.'
+                  }
                 }
               }
             }
           }
         }
       },
-      '/api/auth/google': {
+      '/api/v1/auth/google': {
         get: {
           summary: 'Trigger Google OAuth 2.0 authentication flow',
           tags: ['Authentication'],
@@ -341,7 +145,7 @@ const options = {
           }
         }
       },
-      '/api/auth/google/callback': {
+      '/api/v1/auth/google/callback': {
         get: {
           summary: 'Google OAuth 2.0 callback endpoint',
           tags: ['Authentication'],
@@ -350,53 +154,39 @@ const options = {
               description: 'Google authentication successful',
               content: {
                 'application/json': {
-                  schema: { $ref: '#/components/schemas/AuthResponse' }
-                }
-              }
-            },
-            302: { description: 'Redirects to frontend OAuth callback route' },
-            401: { description: 'Google authentication failed' }
-          }
-        }
-      },
-      '/api/auth/refresh': {
-        post: {
-          summary: 'Refresh access token using httpOnly refresh token cookie',
-          tags: ['Authentication'],
-          requestBody: {
-            required: false,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }
+                  example: {
+                    success: true,
+                    message: 'Google authentication successful',
+                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
                   }
                 }
               }
-            }
-          },
+            },
+            302: { description: 'Redirects to frontend OAuth callback route' }
+          }
+        }
+      },
+      '/api/v1/auth/refresh': {
+        post: {
+          summary: 'Refresh access token using httpOnly refresh token cookie',
+          tags: ['Authentication'],
           responses: {
             200: {
               description: 'Token refreshed successfully',
               content: {
                 'application/json': {
-                  schema: { $ref: '#/components/schemas/AuthResponse' }
-                }
-              }
-            },
-            401: {
-              description: 'Invalid or expired refresh token',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/ErrorResponse' }
+                  example: {
+                    success: true,
+                    message: 'Token refreshed successfully',
+                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                  }
                 }
               }
             }
           }
         }
       },
-      '/api/auth/logout': {
+      '/api/v1/auth/logout': {
         post: {
           summary: 'Sign out user and clear auth cookies',
           tags: ['Authentication'],
@@ -405,16 +195,19 @@ const options = {
               description: 'Logged out successfully',
               content: {
                 'application/json': {
-                  schema: { $ref: '#/components/schemas/SuccessResponse' }
+                  example: {
+                    success: true,
+                    message: 'Logged out successfully'
+                  }
                 }
               }
             }
           }
         }
       },
-      '/api/users/me': {
+      '/api/v1/users/me': {
         get: {
-          summary: 'Get currently authenticated user profile',
+          summary: 'Get logged-in user details by token',
           tags: ['User Profile'],
           security: [{ cookieAuth: [] }, { bearerAuth: [] }],
           responses: {
@@ -422,11 +215,13 @@ const options = {
               description: 'User profile retrieved successfully',
               content: {
                 'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      success: { type: 'boolean', example: true },
-                      user: { $ref: '#/components/schemas/User' }
+                  example: {
+                    success: true,
+                    user: {
+                      _id: '65c8f1e29a34b2811a45d0f1',
+                      name: 'Chief Medical Director',
+                      email: 'superadmin@hospital.com',
+                      role: 'superadmin'
                     }
                   }
                 }
@@ -434,116 +229,137 @@ const options = {
             },
             401: { description: 'Unauthorized' }
           }
+        }
+      },
+      '/api/v1/users': {
+        post: {
+          summary: 'Create a new user (SuperAdmin can create any role; Admin creates users owned by them)',
+          tags: ['User Management'],
+          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                example: {
+                  name: 'Dr. Sarah Jenkins',
+                  email: 'doctor@hospital.com',
+                  password: 'Doctor123!',
+                  role: 'user',
+                  designation: 'Doctor',
+                  department: 'Cardiology',
+                  phone: '+1 (555) 000-0003'
+                }
+              }
+            }
+          },
+          responses: {
+            201: {
+              description: 'User created successfully',
+              content: {
+                'application/json': {
+                  example: {
+                    success: true,
+                    message: 'User created successfully',
+                    user: {
+                      _id: '65c8f1e29a34b2811a45d0f2',
+                      name: 'Dr. Sarah Jenkins',
+                      email: 'doctor@hospital.com',
+                      role: 'user',
+                      createdBy: '65c8f1e29a34b2811a45d0f1'
+                    }
+                  }
+                }
+              }
+            },
+            400: { description: 'Validation error or email exists' },
+            403: { description: 'Permission denied' }
+          }
         },
-        put: {
-          summary: 'Update profile or change password',
-          tags: ['User Profile'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/UserUpdate' }
-              }
-            }
-          },
-          responses: {
-            200: {
-              description: 'Profile updated successfully',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/AuthResponse' }
-                }
-              }
-            },
-            400: {
-              description: 'Validation error or incorrect current password',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/ErrorResponse' }
-                }
-              }
-            },
-            401: { description: 'Unauthorized' }
-          }
-        }
-      },
-      '/api/admin/users': {
         get: {
-          summary: 'List hospital staff with pagination and multi-field filters (Admin / SuperAdmin)',
-          tags: ['Admin Management'],
+          summary: 'List users (SuperAdmin sees ALL users; Admin sees ONLY users created by them)',
+          tags: ['User Management'],
           security: [{ cookieAuth: [] }, { bearerAuth: [] }],
           parameters: [
-            { in: 'query', name: 'page', schema: { type: 'integer', default: 1 }, description: 'Page number for pagination' },
-            { in: 'query', name: 'limit', schema: { type: 'integer', default: 10 }, description: 'Number of users per page' },
-            { in: 'query', name: 'name', schema: { type: 'string' }, description: 'Filter by user name (partial match regex)' },
-            { in: 'query', name: 'role', schema: { type: 'string', enum: ['user', 'admin', 'superadmin'] }, description: 'Filter by staff role' },
-            { in: 'query', name: 'designation', schema: { type: 'string' }, description: 'Filter by hospital designation (Doctor, Pharmacist, etc.)' },
-            { in: 'query', name: 'department', schema: { type: 'string' }, description: 'Filter by hospital department' },
-            { in: 'query', name: 'search', schema: { type: 'string' }, description: 'General search across name, email, department, designation' }
+            { in: 'query', name: 'search', schema: { type: 'string' }, description: 'Search term for name, email, department, designation' },
+            { in: 'query', name: 'page', schema: { type: 'integer', default: 1 }, description: 'Page number' },
+            { in: 'query', name: 'limit', schema: { type: 'integer', default: 50 }, description: 'Page limit' }
           ],
           responses: {
             200: {
-              description: 'Paginated list of staff members with applied filters',
+              description: 'List of accessible users',
               content: {
                 'application/json': {
-                  schema: { $ref: '#/components/schemas/PaginatedUsersResponse' }
+                  example: {
+                    success: true,
+                    count: 1,
+                    users: [
+                      {
+                        _id: '65c8f1e29a34b2811a45d0f2',
+                        name: 'Dr. Sarah Jenkins',
+                        email: 'doctor@hospital.com',
+                        role: 'user',
+                        createdBy: {
+                          _id: '65c8f1e29a34b2811a45d0f1',
+                          name: 'Chief Medical Director',
+                          email: 'superadmin@hospital.com'
+                        }
+                      }
+                    ]
+                  }
                 }
               }
             },
-            401: { description: 'Unauthorized' },
-            403: { description: 'Forbidden - Admin / SuperAdmin role required' }
+            403: { description: 'Forbidden' }
           }
         }
       },
-      '/api/admin/users/{id}': {
-        patch: {
-          summary: 'Update staff role, designation, department, or active status (Admin / SuperAdmin)',
-          tags: ['Admin Management'],
+      '/api/v1/users/{id}': {
+        get: {
+          summary: 'Get user details by ID (Admin can only view users created by them)',
+          tags: ['User Management'],
           security: [{ cookieAuth: [] }, { bearerAuth: [] }],
           parameters: [
-            { in: 'path', name: 'id', required: true, schema: { type: 'string' }, description: 'User Mongo ObjectId' }
+            { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
+          ],
+          responses: {
+            200: { description: 'User profile retrieved' },
+            403: { description: 'Permission denied: Not created by this Admin' },
+            404: { description: 'User not found' }
+          }
+        },
+        patch: {
+          summary: 'Update user details (Admin can only update users created by them)',
+          tags: ['User Management'],
+          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+          parameters: [
+            { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
           ],
           requestBody: {
-            required: true,
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/AdminUserUpdate' }
+                example: {
+                  name: 'Dr. Sarah Jenkins',
+                  designation: 'Senior Cardiologist'
+                }
               }
             }
           },
           responses: {
-            200: {
-              description: 'User updated successfully',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/AuthResponse' }
-                }
-              }
-            },
-            400: { description: 'Self-update restriction violation' },
-            403: { description: 'Role hierarchy permission denied' },
+            200: { description: 'User updated successfully' },
+            403: { description: 'Permission denied: Not created by this Admin' },
             404: { description: 'User not found' }
           }
         },
         delete: {
-          summary: 'Delete staff member account (Admin / SuperAdmin)',
-          tags: ['Admin Management'],
+          summary: 'Delete user account (Admin can only delete users created by them)',
+          tags: ['User Management'],
           security: [{ cookieAuth: [] }, { bearerAuth: [] }],
           parameters: [
-            { in: 'path', name: 'id', required: true, schema: { type: 'string' }, description: 'User Mongo ObjectId' }
+            { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
           ],
           responses: {
-            200: {
-              description: 'User account deleted successfully',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/SuccessResponse' }
-                }
-              }
-            },
-            400: { description: 'Self-deletion restriction violation' },
-            403: { description: 'Permission denied by hierarchy rules' },
+            200: { description: 'User deleted successfully' },
+            403: { description: 'Permission denied: Not created by this Admin' },
             404: { description: 'User not found' }
           }
         }
@@ -556,4 +372,3 @@ const options = {
 const swaggerSpec = swaggerJsdoc(options);
 
 module.exports = swaggerSpec;
-

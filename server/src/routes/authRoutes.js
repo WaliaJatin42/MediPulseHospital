@@ -1,44 +1,19 @@
 const express = require('express');
 const passport = require('passport');
 const {
-  signup,
   login,
   refresh,
   logout,
   googleCallback
 } = require('../controllers/authController');
-const { signupValidation, loginValidation } = require('../utils/validators');
+const { loginValidation } = require('../utils/validators');
 const { authLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
 /**
  * @openapi
- * /api/auth/signup:
- *   post:
- *     summary: Register a new hospital staff member
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UserSignup'
- *     responses:
- *       201:
- *         description: User registered successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
- *       400:
- *         description: Validation error or duplicate email
- */
-router.post('/signup', authLimiter, signupValidation, signup);
-
-/**
- * @openapi
- * /api/auth/login:
+ * /api/v1/auth/login:
  *   post:
  *     summary: Sign in with email and password
  *     tags: [Authentication]
@@ -46,19 +21,24 @@ router.post('/signup', authLimiter, signupValidation, signup);
  *       required: true
  *       content:
  *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UserLogin'
+ *           example:
+ *             email: "superadmin@hospital.com"
+ *             password: "SuperAdmin123!"
  *     responses:
  *       200:
  *         description: Authentication successful
  *       401:
  *         description: Invalid credentials
+ *       403:
+ *         description: Account deactivated
+ *       429:
+ *         description: Too many authentication attempts
  */
 router.post('/login', authLimiter, loginValidation, login);
 
 /**
  * @openapi
- * /api/auth/refresh:
+ * /api/v1/auth/refresh:
  *   post:
  *     summary: Refresh access token
  *     tags: [Authentication]
@@ -72,7 +52,7 @@ router.post('/refresh', refresh);
 
 /**
  * @openapi
- * /api/auth/logout:
+ * /api/v1/auth/logout:
  *   post:
  *     summary: Sign out and clear auth cookies
  *     tags: [Authentication]
@@ -84,7 +64,7 @@ router.post('/logout', logout);
 
 /**
  * @openapi
- * /api/auth/google:
+ * /api/v1/auth/google:
  *   get:
  *     summary: Trigger Google OAuth 2.0 Login Flow
  *     tags: [Authentication]
@@ -100,7 +80,7 @@ router.get(
 
 /**
  * @openapi
- * /api/auth/google/callback:
+ * /api/v1/auth/google/callback:
  *   get:
  *     summary: Google OAuth 2.0 callback
  *     tags: [Authentication]
@@ -117,4 +97,3 @@ router.get(
 );
 
 module.exports = router;
-

@@ -15,38 +15,6 @@ const validate = (req, res, next) => {
   next();
 };
 
-
-const signupValidation = [
-  body('name')
-    .trim()
-    .notEmpty()
-    .withMessage('Name is required')
-    .isLength({ max: 100 })
-    .withMessage('Name cannot exceed 100 characters'),
-  body('email')
-    .trim()
-    .notEmpty()
-    .withMessage('Email is required')
-    .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail(),
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-    .matches(/\d/)
-    .withMessage('Password must contain at least one number'),
-  body('designation')
-    .optional()
-    .isIn(['Doctor', 'Compounder', 'Pharmacist', 'Nurse', 'Lab Technician', 'Administrator', 'Staff', 'Other'])
-    .withMessage('Invalid hospital designation'),
-  body('department')
-    .optional()
-    .trim(),
-  validate
-];
-
 const loginValidation = [
   body('email')
     .trim()
@@ -61,47 +29,7 @@ const loginValidation = [
   validate
 ];
 
-const updateProfileValidation = [
-  body('name')
-    .optional()
-    .trim()
-    .notEmpty()
-    .withMessage('Name cannot be empty')
-    .isLength({ max: 100 })
-    .withMessage('Name cannot exceed 100 characters'),
-  body('designation')
-    .optional()
-    .isIn(['Doctor', 'Compounder', 'Pharmacist', 'Nurse', 'Lab Technician', 'Administrator', 'Staff', 'Other'])
-    .withMessage('Invalid hospital designation'),
-  body('department')
-    .optional()
-    .trim(),
-  body('phone')
-    .optional()
-    .trim(),
-  body('avatar')
-    .optional()
-    .trim()
-    .isURL()
-    .withMessage('Avatar must be a valid URL'),
-  validate
-];
-
-const changePasswordValidation = [
-  body('currentPassword')
-    .notEmpty()
-    .withMessage('Current password is required'),
-  body('newPassword')
-    .notEmpty()
-    .withMessage('New password is required')
-    .isLength({ min: 6 })
-    .withMessage('New password must be at least 6 characters long')
-    .matches(/\d/)
-    .withMessage('New password must contain at least one number'),
-  validate
-];
-
-const adminCreateUserValidation = [
+const createUserValidation = [
   body('name')
     .trim()
     .notEmpty()
@@ -119,17 +47,14 @@ const adminCreateUserValidation = [
     .notEmpty()
     .withMessage('Password is required')
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-    .matches(/\d/)
-    .withMessage('Password must contain at least one number'),
+    .withMessage('Password must be at least 6 characters long'),
   body('role')
     .optional()
     .isIn(['user', 'admin', 'superadmin'])
     .withMessage('Role must be user, admin, or superadmin'),
   body('designation')
     .optional()
-    .isIn(['Doctor', 'Compounder', 'Pharmacist', 'Nurse', 'Lab Technician', 'Administrator', 'Staff', 'Other'])
-    .withMessage('Invalid hospital designation'),
+    .trim(),
   body('department')
     .optional()
     .trim(),
@@ -139,16 +64,25 @@ const adminCreateUserValidation = [
   validate
 ];
 
-const adminUpdateUserValidation = [
+const updateUserValidation = [
+  body('name')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Name cannot be empty')
+    .isLength({ max: 100 })
+    .withMessage('Name cannot exceed 100 characters'),
   body('role')
     .optional()
     .isIn(['user', 'admin', 'superadmin'])
     .withMessage('Role must be user, admin, or superadmin'),
   body('designation')
     .optional()
-    .isIn(['Doctor', 'Compounder', 'Pharmacist', 'Nurse', 'Lab Technician', 'Administrator', 'Staff', 'Other'])
-    .withMessage('Invalid hospital designation'),
+    .trim(),
   body('department')
+    .optional()
+    .trim(),
+  body('phone')
     .optional()
     .trim(),
   body('isActive')
@@ -159,11 +93,8 @@ const adminUpdateUserValidation = [
 ];
 
 module.exports = {
-  signupValidation,
   loginValidation,
-  updateProfileValidation,
-  changePasswordValidation,
-  adminCreateUserValidation,
-  adminUpdateUserValidation
+  createUserValidation,
+  updateUserValidation,
+  validate
 };
-

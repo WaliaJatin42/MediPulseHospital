@@ -9,61 +9,6 @@ const {
   clearAuthCookies
 } = require('../utils/generateTokens');
 
-// @desc    Register a new hospital staff member
-// @route   POST /api/auth/signup
-// @access  Public
-const signup = async (req, res, next) => {
-  try {
-    const { name, email, password, designation, department, phone } = req.body;
-    logger.info(`[Auth Controller] Signup attempt received for email: ${email}`);
-
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      logger.warn(`[Auth Controller] Signup failed: Email ${email} already registered`);
-      return res.status(400).json({
-        success: false,
-        message: 'An account with this email already exists.'
-      });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    const user = await User.create({
-      name,
-      email: email.toLowerCase(),
-      passwordHash,
-      designation: designation || 'Doctor',
-      department: department || 'General',
-      phone: phone || '',
-      authProvider: 'local',
-      role: 'user', // Default role for standard signup
-      isActive: true,
-      lastLogin: new Date()
-    });
-
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    user.refreshToken = refreshToken;
-    await user.save();
-
-    setAuthCookies(res, accessToken, refreshToken);
-
-    logger.info(`[Auth Controller] User registered successfully: ID ${user._id}, Email: ${user.email} (${user.designation})`);
-
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      accessToken,
-      user: user.toJSON()
-    });
-  } catch (error) {
-    logger.error(`[Auth Controller Error] Signup failed: ${error.message}`, { stack: error.stack });
-    next(error);
-  }
-};
-
 // @desc    Authenticate hospital staff & get tokens
 // @route   POST /api/auth/login
 // @access  Public
@@ -93,7 +38,7 @@ const login = async (req, res, next) => {
       logger.warn(`[Auth Controller] Login failed: Account ${email} was created via Google OAuth`);
       return res.status(400).json({
         success: false,
-        message: 'This account was registered using Google OAuth. Please use "GET /api/auth/google" to log in.'
+        message: 'This account was registered using Google OAuth. Please use "GET /api/v1/auth/google" to log in.'
       });
     }
 
@@ -282,10 +227,8 @@ const googleCallback = async (req, res, next) => {
 };
 
 module.exports = {
-  signup,
   login,
   refresh,
   logout,
   googleCallback
 };
-

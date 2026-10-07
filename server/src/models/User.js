@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema(
     },
     designation: {
       type: String,
-      enum: ['Doctor', 'Compounder', 'Pharmacist', 'Nurse', 'Lab Technician', 'Administrator', 'Staff', 'Other'],
+      trim: true,
       default: 'Doctor'
     },
     department: {
@@ -52,6 +52,7 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
+      trim: true,
       default: ''
     },
     authProvider: {

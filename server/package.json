@@ -4,7 +4,7 @@
   "description": "User Management System Backend API with Hospital Role Hierarchy, Swagger Docs, and Daily Logging",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "nodemon server.js",
     "dev": "nodemon server.js",
     "seed": "node seed.js"
   },

@@ -11,7 +11,6 @@ const connectDB = require('./src/config/db');
 const passport = require('./src/config/passport');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
-const adminRoutes = require('./src/routes/adminRoutes');
 const { errorHandler, notFound } = require('./src/middleware/errorMiddleware');
 
 // Connect to MongoDB
@@ -55,40 +54,58 @@ const swaggerUiOptions = {
     .swagger-ui .info .title { color: #0284c7; }
     .swagger-ui .opblock.opblock-post { background: rgba(16, 185, 129, 0.05); }
     .swagger-ui .opblock.opblock-get { background: rgba(14, 165, 233, 0.05); }
-    .swagger-ui .opblock.opblock-put { background: rgba(245, 158, 11, 0.05); }
-    .swagger-ui .opblock.opblock-patch { background: rgba(139, 92, 246, 0.05); }
-    .swagger-ui .opblock.opblock-delete { background: rgba(239, 68, 68, 0.05); }
+    .swagger-ui .models,
+    .swagger-ui section.models,
+    .swagger-ui div.models,
+    .swagger-ui .model-example .tab,
+    .swagger-ui .tabli[data-name="model"],
+    .swagger-ui .model-container,
+    .swagger-ui .model-box,
+    .swagger-ui .model { display: none !important; }
   `,
   swaggerOptions: {
     docExpansion: 'list',
     filter: true,
     persistAuthorization: true,
     displayRequestDuration: true,
-    defaultModelsExpandDepth: 3
+    defaultModelsExpandDepth: -1,
+    defaultModelExpandDepth: -1
   }
 };
 
 // Interactive Swagger OpenAPI 3.0 Documentation Route
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/admin', adminRoutes);
+// Normalize double slashes in incoming request URLs (e.g., //api/v1/auth/login -> /api/v1/auth/login)
+app.use((req, res, next) => {
+  if (req.url.includes('//')) {
+    req.url = req.url.replace(/\/{2,}/g, '/');
+  }
+  next();
+});
+
+// API v1 Routes
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
 
 /**
  * @openapi
- * /api/health:
+ * /api/v1/health:
  *   get:
  *     summary: Check system health status
  *     tags: [Health Check]
  *     responses:
  *       200:
  *         description: API is operational
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "ok"
+ *               message: "Hospital User Management API v1 is running"
  */
-app.get('/api/health', (req, res) => {
+app.get('/api/v1/health', (req, res) => {
   logger.info('[Health Check] API pinged and operational');
-  res.status(200).json({ status: 'ok', message: 'Hospital User Management API is running' });
+  res.status(200).json({ status: 'ok', message: 'Hospital User Management API v1 is running' });
 });
 
 // Error handling middleware
@@ -101,4 +118,3 @@ app.listen(PORT, () => {
   logger.info(`[Server] MediPulse API running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   logger.info(`[Server] Swagger Documentation available at http://localhost:${PORT}/api-docs`);
 });
-
