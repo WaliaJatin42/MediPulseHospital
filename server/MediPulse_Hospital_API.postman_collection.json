@@ -286,7 +286,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Michael Chang\",\n  \"email\": \"pharmacist.new@hospital.com\",\n  \"password\": \"User123!\",\n  \"role\": \"user\",\n  \"designation\": \"Pharmacist\",\n  \"department\": \"pharmacy\",\n  \"phone\": \"+1 (555) 000-0999\"\n}"
+              "raw": "{\n  \"name\": \"Michael Chang\",\n  \"email\": \"pharmacist.new@hospital.com\",\n  \"password\": \"User123!\",\n  \"role\": \"user\",\n  \"designation\": \"Pharmacist\",\n  \"department\": \"pharmacy\",\n  \"phone\": \"+1 (555) 000-0999\",\n  \"salary\": 75000\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/users",
@@ -401,6 +401,123 @@
               "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "users", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Salary Management",
+      "item": [
+        {
+          "name": "Assign / Create Salary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"salary\": 85000,\n  \"department\": \"pharmacy\",\n  \"designation\": \"Senior Pharmacist\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "salary"]
+            },
+            "description": "Only SuperAdmin, HR Admin, or Supervisors under HR department are authorized."
+          }
+        },
+        {
+          "name": "Get All Salaries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salary?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "salary"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Salary by User ID or Salary ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salary/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "salary", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Salary Record",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"salary\": 92000,\n  \"designation\": \"Lead Pharmacist\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salary/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "salary", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Salary Record",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salary/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "salary", "{{userId}}"]
             }
           }
         }

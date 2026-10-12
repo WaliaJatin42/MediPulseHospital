@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Salary = require('../models/Salary');
 const logger = require('../utils/logger');
 
 // Helper function to check if user belongs to HR department or has HR designation
@@ -38,17 +39,30 @@ const getMe = async (req, res, next) => {
   }
 };
 
-// @desc    Create a new user account
+// @desc    Create a new user account and initialize salary record
 // @route   POST /api/v1/users
-// @access  Private (SuperAdmin, Admin, Supervisor)
+// @access  Private (SuperAdmin, HR Admin, HR Supervisor only)
 // Rules:
 // 1) SuperAdmin: Can create any role ('user', 'supervisor', 'admin', 'superadmin') in any team/dept
-// 2) HR Admin: Can create 'supervisor' and 'user' under them or any team
-// 3) Supervisor: Can create standard 'user' under the SAME department in which supervisor is in
+// 2) HR Admin / HR Supervisor: Can create 'supervisor' and 'user' in any team/dept and assign salary
+// 3) Other department admins or supervisors: RESTRICTED from creating users or assigning salary
 const createUser = async (req, res, next) => {
   try {
-    const { name, email, password, role, designation, department, phone, avatar } = req.body;
+    const { name, email, password, role, designation, department, phone, avatar, salary } = req.body;
     logger.info(`[User Controller] User creation attempt by ${req.user.email} (${req.user.role}, ID: ${req.user._id}) for email: ${email}`);
+
+    const isSuperAdmin = req.user.role === 'superadmin';
+    const isHR = isHRRole(req.user);
+    const canCreateUser = isSuperAdmin || isHR;
+
+    // Strict validation: Only SuperAdmin, HR Admin, or Supervisors under HR department can create users or add salary
+    if (!canCreateUser) {
+      logger.warn(`[User Controller] Permission denied: ${req.user.email} (${req.user.role}, Dept: ${req.user.department}) attempted to create user`);
+      return res.status(403).json({
+        success: false,
+        message: 'Permission denied: Only SuperAdmin, HR Admin, or Supervisors under HR department are authorized to create users and assign salaries.'
+      });
+    }
 
     // Check duplicate email
     const existingUser = await User.findOne({ email: email.toLowerCase(), isDeleted: { $ne: true } });
@@ -61,30 +75,17 @@ const createUser = async (req, res, next) => {
     }
 
     let targetRole = role || 'user';
-    const isSuperAdmin = req.user.role === 'superadmin';
-    const isHR = isHRRole(req.user);
 
     // Role creation restrictions:
     // - SuperAdmin: can create any role ('user', 'supervisor', 'admin', 'superadmin')
-    // - Admin / HR Admin: can create 'user' or 'supervisor'
-    // - Supervisor: can only create standard 'user'
+    // - HR Admin & HR Supervisor: can only create 'user' or 'supervisor'
     if (!isSuperAdmin) {
-      if (req.user.role === 'admin') {
-        if (targetRole !== 'user' && targetRole !== 'supervisor') {
-          logger.warn(`[User Controller] Permission denied: Admin ${req.user.email} attempted to create role '${targetRole}'`);
-          return res.status(403).json({
-            success: false,
-            message: 'Admins can only create users with role "user" or "supervisor".'
-          });
-        }
-      } else if (req.user.role === 'supervisor') {
-        if (targetRole !== 'user') {
-          logger.warn(`[User Controller] Permission denied: Supervisor ${req.user.email} attempted to create role '${targetRole}'`);
-          return res.status(403).json({
-            success: false,
-            message: 'Supervisors can only create standard users with role "user".'
-          });
-        }
+      if (targetRole !== 'user' && targetRole !== 'supervisor') {
+        logger.warn(`[User Controller] Permission denied: ${req.user.email} attempted to create role '${targetRole}'`);
+        return res.status(403).json({
+          success: false,
+          message: 'HR Admin and HR Supervisors can only create users with role "user" or "supervisor".'
+        });
       }
     }
 
@@ -101,14 +102,15 @@ const createUser = async (req, res, next) => {
     }
 
     // Determine department assignment:
-    // 1) SuperAdmin: Any department (department || 'General')
-    // 2) HR Admin: Can create under them or ANY team (department || 'General')
-    // 3) Supervisor: MUST create under the SAME department in which supervisor is in
+    // SuperAdmin or HR Admin can specify any department / team (default 'General')
     let targetDepartment = department || 'General';
-    if (req.user.role === 'supervisor') {
-      targetDepartment = req.user.department || 'General';
-    } else if (!isSuperAdmin && !isHR && req.user.department) {
-      targetDepartment = department || req.user.department;
+
+    const numericSalary = salary !== undefined && salary !== null && salary !== '' ? Number(salary) : 0;
+    if (isNaN(numericSalary) || numericSalary < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Salary must be a non-negative number.'
+      });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -122,6 +124,7 @@ const createUser = async (req, res, next) => {
       designation: designation || 'Staff',
       department: targetDepartment,
       phone: phone ? phone.trim() : '',
+      salary: numericSalary,
       avatar: avatar || undefined,
       authProvider: 'local',
       createdBy: req.user._id,
@@ -129,7 +132,18 @@ const createUser = async (req, res, next) => {
       isActive: true
     });
 
-    logger.info(`[Audit Log] User created: ID ${newUser._id}, Email ${newUser.email}, Role ${newUser.role}, Dept ${newUser.department} by ${req.user.email} (${req.user.role}, ID: ${req.user._id})`);
+    // Create corresponding Salary record in database
+    await Salary.create({
+      user_id: newUser._id,
+      user_name: newUser.name,
+      department: newUser.department,
+      designation: newUser.designation,
+      salary: numericSalary,
+      createdBy: req.user._id,
+      updatedBy: req.user._id
+    });
+
+    logger.info(`[Audit Log] User created: ID ${newUser._id}, Email ${newUser.email}, Role ${newUser.role}, Dept ${newUser.department}, Salary ${numericSalary} by ${req.user.email} (${req.user.role}, ID: ${req.user._id})`);
 
     res.status(201).json({
       success: true,
@@ -273,6 +287,7 @@ const updateUser = async (req, res, next) => {
     }
 
     const isSuperAdmin = req.user.role === 'superadmin';
+    const isHR = isHRRole(req.user);
     const creatorId = user.createdBy?.toString();
     const isCreator = creatorId === req.user._id.toString();
     const isSelf = user._id.toString() === req.user._id.toString();
@@ -298,7 +313,7 @@ const updateUser = async (req, res, next) => {
       }
     }
 
-    const { name, email, role, designation, department, phone, isActive, avatar, password } = req.body;
+    const { name, email, role, designation, department, phone, isActive, avatar, password, salary } = req.body;
 
     // Email update uniqueness check
     if (email && email.toLowerCase() !== user.email) {
@@ -330,36 +345,49 @@ const updateUser = async (req, res, next) => {
 
     if (name) user.name = name;
     if (designation) user.designation = designation;
+    if (department !== undefined) user.department = department;
     if (avatar !== undefined) user.avatar = avatar;
     if (isActive !== undefined) user.isActive = isActive;
 
-    // Department update handling:
-    // Supervisors cannot move users out of their department
-    if (department !== undefined) {
-      if (req.user.role === 'supervisor') {
-        user.department = req.user.department || 'General';
-      } else {
-        user.department = department;
+    // Salary update handling (Only SuperAdmin or HR personnel can modify salary)
+    if (salary !== undefined) {
+      if (!isSuperAdmin && !isHR) {
+        return res.status(403).json({
+          success: false,
+          message: 'Permission denied: Only SuperAdmin, HR Admin, or Supervisors under HR department can modify salary.'
+        });
       }
+      const numericSalary = Number(salary);
+      if (isNaN(numericSalary) || numericSalary < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Salary must be a non-negative number.'
+        });
+      }
+      user.salary = numericSalary;
+
+      // Sync with Salary collection
+      await Salary.findOneAndUpdate(
+        { user_id: user._id },
+        {
+          user_name: user.name,
+          department: user.department,
+          designation: user.designation,
+          salary: numericSalary,
+          updatedBy: req.user._id
+        },
+        { upsert: true, new: true }
+      );
     }
 
     // Role update restrictions
     if (role) {
       if (!isSuperAdmin) {
-        if (req.user.role === 'admin') {
-          if (role !== 'user' && role !== 'supervisor') {
-            return res.status(403).json({
-              success: false,
-              message: 'Admins cannot assign admin or superadmin roles.'
-            });
-          }
-        } else if (req.user.role === 'supervisor') {
-          if (role !== 'user') {
-            return res.status(403).json({
-              success: false,
-              message: 'Supervisors can only assign role "user".'
-            });
-          }
+        if (role !== 'user' && role !== 'supervisor') {
+          return res.status(403).json({
+            success: false,
+            message: 'HR Admins and Supervisors cannot assign admin or superadmin roles.'
+          });
         }
       }
       user.role = role;
@@ -450,6 +478,9 @@ const deleteUser = async (req, res, next) => {
     user.isActive = false;
     user.email = `deleted_${Date.now()}_${user.email}`;
     await user.save();
+
+    // Also remove / update corresponding salary record
+    await Salary.findOneAndDelete({ user_id: user._id });
 
     logger.info(`[Audit Log] User deleted: ${user.name} (Original Email: ${user.email}, ID: ${user._id}) soft-deleted by ${req.user.email} (${req.user.role}, ID: ${req.user._id}) at ${user.deletedAt}`);
 

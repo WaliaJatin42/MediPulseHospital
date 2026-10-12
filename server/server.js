@@ -12,6 +12,7 @@ const passport = require('./src/config/passport');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const attendanceRoutes = require('./src/routes/attendanceRoutes');
+const salaryRoutes = require('./src/routes/salaryRoutes');
 const { errorHandler, notFound } = require('./src/middleware/errorMiddleware');
 
 // Connect to MongoDB
@@ -89,6 +90,8 @@ app.use((req, res, next) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/salary', salaryRoutes);
+app.use('/api/v1/salaries', salaryRoutes);
 
 /**
  * @openapi

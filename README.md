@@ -1,16 +1,18 @@
-# MediPulse Hospital - User Management & Attendance System
+# MediPulse Hospital - User Management, Salary & Attendance System
 
-An enterprise-grade hospital management backend system built with **Node.js**, **Express**, and **MongoDB**. Features hierarchical role-based access control (RBAC), multi-department personnel management, audit logging, and a 9-hour work policy attendance tracking system.
+An enterprise-grade hospital management backend system built with **Node.js**, **Express**, and **MongoDB**. Features hierarchical role-based access control (RBAC), centralized HR personnel hiring, employee salary records management, audit logging, and a 9-hour work policy attendance tracking system.
 
 ---
 
 ## 📌 System Architecture & Core Highlights
 
-- **Hierarchical RBAC**: Fine-grained access control across `superadmin`, `admin`, `supervisor`, and standard `user` roles across 8 hospital departments (`hr`, `pharmacy`, `technical`, `security`, `support`, `legal`, `accounts`, `general`).
-- **Scoped Visibility & Creation Rules**:
-  - **Superadmin**: Full global view and edit capabilities across all users in the hospital.
-  - **HR Admin**: Can hire/create supervisors and users under any department; strictly views and manages only users created by them.
-  - **Supervisor**: Can create standard users under their **same department**; strictly views only users created by them.
+- **Hierarchical RBAC & Centralized Hiring**:
+  - **Superadmin**: Full global view and edit capabilities across all users, salaries, and attendance in the hospital.
+  - **HR Admin & HR Supervisors**: Centralized personnel management. Exclusively authorized to hire/create supervisors and users across any department, assign salary records, and view/manage only users created by them.
+  - **Other Department Admins & Supervisors**: Strictly **restricted** from creating users or assigning salary.
+- **Dedicated Salary Records Table (`salaries`)**:
+  - Full CRUD operations with fields: `user_id`, `user_name`, `department`, `designation`, `salary`, `created_at`, `updated_at`.
+  - Automatically initialized during user creation and synchronized on profile edits.
 - **Soft Delete & Full Audit Trail**: Tracks `createdBy`, `updatedBy`, `deletedBy`, and `deletedAt` for compliance and record history.
 - **Attendance System (9-Hour Policy)**: Real-time Punch-In / Punch-Out with automated work hour calculation, shift completion flags, and statuses (`present`, `half_day`, `short_hours`, `late`, `punched_in`).
 - **RESTful API Versioning**: All routes prefixed under `/api/v1/`.
@@ -23,6 +25,7 @@ An enterprise-grade hospital management backend system built with **Node.js**, *
 erDiagram
     USER ||--o{ USER : "creates / updates / deletes"
     USER ||--o{ ATTENDANCE : "marks"
+    USER ||--|| SALARY : "has salary record"
 
     USER {
         ObjectId _id PK
@@ -35,6 +38,7 @@ erDiagram
         string designation "Doctor, Staff, etc."
         string department "hr | pharmacy | technical | security | support | legal | accounts | general"
         string phone "Contact Number (Unique for Admin/Superadmin)"
+        number salary "Current Salary"
         enum authProvider "local | google"
         boolean isActive "Active Status"
         date lastLogin "Last Authentication Timestamp"
@@ -45,6 +49,19 @@ erDiagram
         date deletedAt "Soft Delete Timestamp"
         date createdAt "Record Created"
         date updatedAt "Record Modified"
+    }
+
+    SALARY {
+        ObjectId _id PK
+        ObjectId user_id FK "Reference to User"
+        string user_name "Employee Name"
+        string department "Department"
+        string designation "Designation"
+        number salary "Salary Amount (Non-negative)"
+        ObjectId createdBy FK "Created By User ID"
+        ObjectId updatedBy FK "Updated By User ID"
+        date created_at "Created Timestamp"
+        date updated_at "Modified Timestamp"
     }
 
     ATTENDANCE {
@@ -68,46 +85,42 @@ erDiagram
 
 ---
 
-## 👥 Role Hierarchy & User Creation Workflow
+## 👥 Role Hierarchy & Personnel Creation Workflow
 
 ```mermaid
 flowchart TD
     SA([Superadmin])
     HRA([HR Admin])
-    DA([Department Admin\ne.g., Pharmacy / Tech / Legal])
     HRS([HR Supervisor])
-    DS([Department Supervisor])
+    ODA([Other Dept Admins\nPharmacy / Tech / Legal / Accounts])
+    ODS([Other Dept Supervisors])
     USR([Standard User\ne.g., Doctor, Nurse, Staff])
 
-    %% Hierarchical Permissions
-    SA -->|Can view, edit, delete ALL users\nCan create any role in any dept| HRA
-    SA -->|Can create & manage| DA
-    SA -->|Can create & manage| HRS
-    SA -->|Can create & manage| DS
-    SA -->|Can create & manage| USR
+    %% Authorized Creation
+    SA -->|Can create any role in any dept\nAssigns salary| HRA
+    SA -->|Can create any role in any dept\nAssigns salary| ODA
+    SA -->|Can create any role in any dept\nAssigns salary| USR
 
-    HRA -->|Creates supervisor & user\nin ANY team/dept| DS
-    HRA -->|Creates supervisor & user\nin ANY team/dept| USR
+    HRA -->|Creates supervisor & user\nin ANY team/dept + assigns salary| ODS
+    HRA -->|Creates supervisor & user\nin ANY team/dept + assigns salary| USR
     HRA -->|Creates under HR| HRS
-    HRA -.->|Views ONLY users\ncreated by self| HRA
+    HRS -->|Creates supervisor & user\nin ANY team/dept + assigns salary| USR
 
-    DA -->|Creates supervisor & user\nin own department| DS
-    DA -->|Creates user in own dept| USR
-
-    DS -->|Creates standard user ONLY\nin SAME department| USR
-    DS -.->|Views ONLY users\ncreated by self| DS
+    %% Restrictions
+    ODA -.->|RESTRICTED: Cannot create users or add salary| X1[❌ Access Denied 403]
+    ODS -.->|RESTRICTED: Cannot create users or add salary| X2[❌ Access Denied 403]
 
     classDef superAdmin fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff;
     classDef hrAdmin fill:#0284C7,stroke:#0369A1,stroke-width:2px,color:#fff;
-    classDef deptAdmin fill:#0D9488,stroke:#115E59,stroke-width:2px,color:#fff;
-    classDef supervisor fill:#F59E0B,stroke:#B45309,stroke-width:2px,color:#fff;
+    classDef deptAdmin fill:#6B7280,stroke:#374151,stroke-width:2px,color:#fff;
     classDef user fill:#10B981,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef restricted fill:#EF4444,stroke:#991B1B,stroke-width:2px,color:#fff;
 
     class SA superAdmin;
     class HRA,HRS hrAdmin;
-    class DA deptAdmin;
-    class DS supervisor;
+    class ODA,ODS deptAdmin;
     class USR user;
+    class X1,X2 restricted;
 ```
 
 ---
@@ -151,12 +164,13 @@ sequenceDiagram
 
 ## 📊 Summary of Permissions & Visibility Matrix
 
-| Role | Create Role | Target Department | User List Visibility (`GET /users`) | Edit / Delete Access |
+| Role | Create Users & Assign Salary | Target Department | User List Visibility (`GET /users`) | Salary Records Access (`GET /salary`) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Superadmin** | `user`, `supervisor`, `admin`, `superadmin` | Any Department | **All Users** in entire hospital | Full access to edit & delete all users |
-| **HR Admin** | `user`, `supervisor` | **Any Team / Department** | **Only users created by them** | Only users created by them |
-| **Supervisor** | `user` (standard user only) | **Same department only** | **Only users created by them** | Only users created by them |
-| **Dept Admin** | `user`, `supervisor` | Own department | Users created by them / in department | Users created by them / in department |
+| **Superadmin** | `user`, `supervisor`, `admin`, `superadmin` | Any Department | **All Users** in entire hospital | Full access to view, update, delete all salaries |
+| **HR Admin** | `user`, `supervisor` | **Any Team / Department** | **Only users created by them** | Full access to view, add, update salaries |
+| **HR Supervisor** | `user`, `supervisor` | **Any Team / Department** | **Only users created by them** | Full access to view, add, update salaries |
+| **Other Dept Admin** | **Restricted (403)** | N/A | Only users created by them | Restricted (403) |
+| **Other Dept Supervisor**| **Restricted (403)** | N/A | Only users created by them | Restricted (403) |
 
 > [!NOTE]
 > **Phone Number Uniqueness Rule**: Unique phone validation is **only enforced** for accounts with role `admin` or `superadmin`. Standard `user` and `supervisor` accounts bypass unique phone constraints to facilitate streamlined onboarding.
@@ -180,14 +194,23 @@ All endpoints are versioned with the `/api/v1/` prefix.
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/v1/users/me` | Authenticated | Retrieve current user profile |
-| `POST` | `/api/v1/users` | Admin, Superadmin, Supervisor | Create a new user (governed by RBAC) |
-| `GET` | `/api/v1/users` | Admin, Superadmin, Supervisor | List users (scoped by role rules) |
-| `GET` | `/api/v1/users/:id` | Admin, Superadmin, Supervisor | Get specific user by ID |
-| `PATCH` | `/api/v1/users/:id` | Admin, Superadmin, Supervisor | Update user details (records `updatedBy`) |
-| `DELETE` | `/api/v1/users/:id` | Admin, Superadmin, Supervisor | Soft-delete user (records `deletedBy`, `deletedAt`) |
+| `POST` | `/api/v1/users` | Superadmin, HR Admin, HR Supervisor | Create a user & initialize salary (Other depts restricted) |
+| `GET` | `/api/v1/users` | Superadmin, Admin, Supervisor | List users (scoped by role rules) |
+| `GET` | `/api/v1/users/:id` | Superadmin, Admin, Supervisor | Get specific user by ID |
+| `PATCH` | `/api/v1/users/:id` | Superadmin, Admin, Supervisor | Update user details & salary (records `updatedBy`) |
+| `DELETE` | `/api/v1/users/:id` | Superadmin, Admin, Supervisor | Soft-delete user & remove salary (records `deletedBy`) |
 | `POST` | `/api/v1/users/:id/reset-password` | Admin, Superadmin, Self | Reset password with departmental boundaries |
 
-### 3. Attendance Management (`/api/v1/attendance`)
+### 3. Salary Management (`/api/v1/salary` & `/api/v1/salaries`)
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/salary` | Superadmin, HR Admin, HR Supervisor | Create or assign a salary record |
+| `GET` | `/api/v1/salary` | Superadmin, HR Admin, HR Supervisor | List all salary records (search, department filter) |
+| `GET` | `/api/v1/salary/:id` | Superadmin, HR Admin, HR Supervisor, Self | Get salary record by Salary ID or User ID |
+| `PATCH` | `/api/v1/salary/:id` | Superadmin, HR Admin, HR Supervisor | Update employee salary amount or details |
+| `DELETE` | `/api/v1/salary/:id` | Superadmin, HR Admin, HR Supervisor | Delete salary record (resets user salary to 0) |
+
+### 4. Attendance Management (`/api/v1/attendance`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/attendance/punch-in` | Authenticated | Mark daily punch-in |

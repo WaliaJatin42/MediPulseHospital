@@ -55,6 +55,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    salary: {
+      type: Number,
+      default: 0,
+      min: [0, 'Salary cannot be negative']
+    },
     authProvider: {
       type: String,
       enum: ['local', 'google'],

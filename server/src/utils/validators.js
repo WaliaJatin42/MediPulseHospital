@@ -61,6 +61,10 @@ const createUserValidation = [
   body('phone')
     .optional()
     .trim(),
+  body('salary')
+    .optional()
+    .isNumeric()
+    .withMessage('Salary must be a numeric value'),
   validate
 ];
 
@@ -85,6 +89,10 @@ const updateUserValidation = [
   body('phone')
     .optional()
     .trim(),
+  body('salary')
+    .optional()
+    .isNumeric()
+    .withMessage('Salary must be a numeric value'),
   body('isActive')
     .optional()
     .isBoolean()
@@ -101,10 +109,52 @@ const resetPasswordValidation = [
   validate
 ];
 
+const createSalaryValidation = [
+  body('user_id')
+    .optional()
+    .isMongoId()
+    .withMessage('Valid user_id is required'),
+  body('userId')
+    .optional()
+    .isMongoId()
+    .withMessage('Valid userId is required'),
+  body('salary')
+    .notEmpty()
+    .withMessage('Salary amount is required')
+    .isNumeric()
+    .withMessage('Salary must be a numeric value'),
+  body('user_name')
+    .optional()
+    .trim(),
+  body('department')
+    .optional()
+    .trim(),
+  body('designation')
+    .optional()
+    .trim(),
+  validate
+];
+
+const updateSalaryValidation = [
+  body('salary')
+    .optional()
+    .isNumeric()
+    .withMessage('Salary must be a numeric value'),
+  body('department')
+    .optional()
+    .trim(),
+  body('designation')
+    .optional()
+    .trim(),
+  validate
+];
+
 module.exports = {
   loginValidation,
   createUserValidation,
   updateUserValidation,
   resetPasswordValidation,
+  createSalaryValidation,
+  updateSalaryValidation,
   validate
 };
