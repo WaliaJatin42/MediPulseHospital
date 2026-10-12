@@ -1,6 +1,6 @@
 # MediPulse Hospital - User Management, Salary & Attendance System
 
-An enterprise-grade hospital management backend system built with **Node.js**, **Express**, and **MongoDB**. Features hierarchical role-based access control (RBAC), centralized HR personnel hiring, employee salary records management, audit logging, and a 9-hour work policy attendance tracking system.
+An enterprise-grade hospital management backend system built with **Node.js**, **Express**, and **MongoDB**. Features hierarchical role-based access control (RBAC), centralized HR hiring, employee salary records management, audit logging, a 9-hour work policy attendance tracking system, and an **automated monthly attendance-based payroll distribution system**.
 
 ---
 
@@ -13,6 +13,15 @@ An enterprise-grade hospital management backend system built with **Node.js**, *
 - **Dedicated Salary Records Table (`salaries`)**:
   - Full CRUD operations with fields: `user_id`, `user_name`, `department`, `designation`, `salary`, `created_at`, `updated_at`.
   - Automatically initialized during user creation and synchronized on profile edits.
+- **Automated Monthly Attendance-Based Payroll (`payrolls`)**:
+  - Automatically runs on date **01 of every month** (`01/mm/yyyy`) via scheduled cron and startup check on `npm start`.
+  - Computes salary per employee based on monthly attendance records:
+    - **`present`**: 1.0 payable day
+    - **`half_day`**: 0.5 payable day
+    - **`short_hours`**: 0.5 payable day
+    - **`punched_in`** (no punch-out): 0.5 payable day
+  - Formula: `calculatedSalary = Math.round((baseSalary / totalDaysInMonth) * payableDays)`.
+  - Maintains month-wise historical records with unique transaction references (`TXN-PAY-YYYYMM-...`) and dispatches to accounts.
 - **Soft Delete & Full Audit Trail**: Tracks `createdBy`, `updatedBy`, `deletedBy`, and `deletedAt` for compliance and record history.
 - **Attendance System (9-Hour Policy)**: Real-time Punch-In / Punch-Out with automated work hour calculation, shift completion flags, and statuses (`present`, `half_day`, `short_hours`, `late`, `punched_in`).
 - **RESTful API Versioning**: All routes prefixed under `/api/v1/`.
@@ -26,6 +35,7 @@ erDiagram
     USER ||--o{ USER : "creates / updates / deletes"
     USER ||--o{ ATTENDANCE : "marks"
     USER ||--|| SALARY : "has salary record"
+    USER ||--o{ PAYROLL : "receives monthly"
 
     USER {
         ObjectId _id PK
@@ -62,6 +72,31 @@ erDiagram
         ObjectId updatedBy FK "Updated By User ID"
         date created_at "Created Timestamp"
         date updated_at "Modified Timestamp"
+    }
+
+    PAYROLL {
+        ObjectId _id PK
+        ObjectId user_id FK "Reference to User"
+        string user_name "Employee Name"
+        string department "Department"
+        string designation "Designation"
+        string month "Format YYYY-MM"
+        number baseSalary "Monthly Base Salary"
+        number totalDaysInMonth "Days in Month (e.g. 30, 31)"
+        number presentDays "Present Days"
+        number halfDays "Half Days"
+        number shortHoursDays "Short Hours Days"
+        number absentDays "Absent Days"
+        number payableDays "Payable Days"
+        number calculatedSalary "Net Payable Salary"
+        number deductions "Salary Deductions"
+        enum status "paid | processed | pending"
+        date disbursedAt "Disbursement Timestamp"
+        string transactionReference "Unique TXN-PAY-..."
+        boolean processedAutomatically "Auto or Manual Flag"
+        string remarks "Attendance Breakdown Summary"
+        date createdAt "Record Created"
+        date updatedAt "Record Modified"
     }
 
     ATTENDANCE {
@@ -125,6 +160,32 @@ flowchart TD
 
 ---
 
+## 💰 Automated 01/mm/yyyy Monthly Payroll Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Scheduler as Node Server (npm start / Cron: 0 0 1 * *)
+    participant Engine as Payroll Service Engine
+    participant DB as MongoDB (Attendance, User, Payroll)
+    actor Employee as Hospital Employee Account
+
+    Note over Scheduler: Triggered automatically on 01/mm/yyyy at 00:00 (or on npm start)
+    Scheduler->>Engine: initPayrollScheduler() -> check date 1
+    Engine->>DB: Query all active users
+    loop For Each Active Employee
+        Engine->>DB: Fetch user baseSalary & monthly attendance (YYYY-MM)
+        Engine->>Engine: Count present (1.0), half_day (0.5), short_hours (0.5)
+        Engine->>Engine: payableDays = present + (half_day * 0.5) + (short_hours * 0.5)
+        Engine->>Engine: calculatedSalary = (baseSalary / totalDaysInMonth) * payableDays
+        Engine->>DB: Upsert Payroll Record (month, payableDays, calculatedSalary, status: 'paid')
+        Engine->>Employee: Disburse salary into employee account with TXN-PAY Ref
+    end
+    Engine-->>Scheduler: Payroll Completed (Summary: Total employees paid & disbursed amount)
+```
+
+---
+
 ## ⏱️ Attendance System & 9-Hour Shift Workflow
 
 ```mermaid
@@ -164,16 +225,14 @@ sequenceDiagram
 
 ## 📊 Summary of Permissions & Visibility Matrix
 
-| Role | Create Users & Assign Salary | Target Department | User List Visibility (`GET /users`) | Salary Records Access (`GET /salary`) |
+| Role | Create Users & Assign Salary | Target Department | User List Visibility (`GET /users`) | Payroll Records Access |
 | :--- | :--- | :--- | :--- | :--- |
-| **Superadmin** | `user`, `supervisor`, `admin`, `superadmin` | Any Department | **All Users** in entire hospital | Full access to view, update, delete all salaries |
-| **HR Admin** | `user`, `supervisor` | **Any Team / Department** | **Only users created by them** | Full access to view, add, update salaries |
-| **HR Supervisor** | `user`, `supervisor` | **Any Team / Department** | **Only users created by them** | Full access to view, add, update salaries |
-| **Other Dept Admin** | **Restricted (403)** | N/A | Only users created by them | Restricted (403) |
-| **Other Dept Supervisor**| **Restricted (403)** | N/A | Only users created by them | Restricted (403) |
-
-> [!NOTE]
-> **Phone Number Uniqueness Rule**: Unique phone validation is **only enforced** for accounts with role `admin` or `superadmin`. Standard `user` and `supervisor` accounts bypass unique phone constraints to facilitate streamlined onboarding.
+| **Superadmin** | `user`, `supervisor`, `admin`, `superadmin` | Any Department | **All Users** in entire hospital | Full access to process, view, audit all payrolls |
+| **HR Admin** | `user`, `supervisor` | **Any Team / Department** | **Only users created by them** | Full access to trigger & view all monthly payrolls |
+| **HR Supervisor** | `user`, `supervisor` | **Any Team / Department** | **Only users created by them** | Full access to view all monthly payrolls |
+| **Other Dept Admin** | **Restricted (403)** | N/A | Only users created by them | View own personal salary slip (`/payroll/my`) |
+| **Other Dept Supervisor**| **Restricted (403)** | N/A | Only users created by them | View own personal salary slip (`/payroll/my`) |
+| **Standard User** | **Restricted (403)** | N/A | N/A | View own personal salary slip (`/payroll/my`) |
 
 ---
 
@@ -210,7 +269,15 @@ All endpoints are versioned with the `/api/v1/` prefix.
 | `PATCH` | `/api/v1/salary/:id` | Superadmin, HR Admin, HR Supervisor | Update employee salary amount or details |
 | `DELETE` | `/api/v1/salary/:id` | Superadmin, HR Admin, HR Supervisor | Delete salary record (resets user salary to 0) |
 
-### 4. Attendance Management (`/api/v1/attendance`)
+### 4. Payroll & Monthly Salary Distribution (`/api/v1/payroll`)
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/payroll/process` | Superadmin, HR Admin | Trigger monthly attendance-based payroll calculation |
+| `GET` | `/api/v1/payroll` | Superadmin, HR Admin, HR Supervisor | List month-wise payroll records (month, dept filters) |
+| `GET` | `/api/v1/payroll/my` | Authenticated (All employees) | Retrieve logged-in employee's monthly pay slips |
+| `GET` | `/api/v1/payroll/:id` | Superadmin, HR Admin, HR Supervisor, Self | Get detailed pay slip record by ID |
+
+### 5. Attendance Management (`/api/v1/attendance`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/attendance/punch-in` | Authenticated | Mark daily punch-in |
@@ -267,3 +334,57 @@ When any record is modified or removed:
 - `updatedBy` captures the actor's User ID.
 - Soft-deletion retains the user document in the database while stamping `deletedBy` and `deletedAt`.
 - All operational activities are logged via Winston logger to both console and daily rotated log files in `server/logs/`.
+
+---
+
+## 🔒 Security, VAPT Hardening & Cyberattack Defenses
+
+The system implements multi-layered security controls specifically designed to pass rigorous **Vulnerability Assessment and Penetration Testing (VAPT)** audits and defend against web cyberattacks:
+
+### 1. Global VAPT Input Guard (`vaptSecurityGuard`)
+All incoming requests (`req.body`, `req.query`, `req.params`) are inspected before reaching application handlers. Any request containing disallowed markup or attack vectors is immediately blocked with **HTTP 400 Bad Request**:
+- **Cross-Site Scripting (XSS) & HTML Injections**:
+  - Rejects HTML tags (`<script>`, `<iframe>`, `<img>`, `<svg>`, `<b>`, `<a>`, `<!-- -->`, etc.)
+  - Rejects inline DOM event handlers (`onload=`, `onerror=`, `onclick=`, `onmouseover=`, `onfocus=`, etc.)
+  - Rejects active pseudo-protocols (`javascript:`, `vbscript:`, `data:text/html`, etc.)
+- **CSS Styling & Style Expression Injections**:
+  - Rejects `<style>` tags
+  - Rejects CSS `@import` directives (`@import url(...)`)
+  - Rejects legacy CSS expression (`expression(...)`) and behavior (`behavior:...`) vectors
+- **Evasion Detection**:
+  - Automatically decodes single URL-encoded (`%3Cscript%3E`), double URL-encoded (`%253Cscript%253E`), and HTML entity-encoded (`&lt;script&gt;`) payloads to prevent filter bypass.
+- **NoSQL Injection Defense**:
+  - Rejects query operators (keys beginning with `$` like `{"$gt": ""}` or containing `.`)
+- **Prototype Pollution Prevention**:
+  - Rejects objects or URLs attempting to access `__proto__`, `constructor`, or `prototype`.
+
+### 2. Route Protection & Hierarchical RBAC
+- **Token Verification (`protect`)**: Every endpoint under `/api/v1/users`, `/api/v1/salary`, `/api/v1/attendance`, and `/api/v1/payroll` requires a signed JWT access token.
+- **Deactivated / Deleted Account Rejection**: Users with `isActive: false` or `isDeleted: true` are blocked immediately with **HTTP 403 Forbidden**.
+- **Role-Based Authorization (`authorize`)**: Centralized enforcement ensuring only authorized roles (`superadmin`, `admin`, `supervisor`) can access management operations.
+
+### 3. Network & Infrastructure Hardening
+- **Payload Denial-of-Service (DoS) Mitigation**: Strict request body limit of **10 KB** (`express.json({ limit: '10kb' })`). Requests exceeding this limit receive **HTTP 413 Payload Too Large**.
+- **Brute-Force & Rate Limiting**:
+  - Sensitive auth endpoints (`/api/v1/auth/login`, `/api/v1/auth/google`): 30 requests per 15 minutes.
+  - General API endpoints (`/api/v1/*`): 300 requests per 15 minutes.
+- **Information Exposure Mitigation (CWE-209)**: Stack traces are suppressed from API responses and logged exclusively to internal Winston daily rotation logs.
+- **Hardened HTTP Security Headers (Helmet)**:
+  - `X-Content-Type-Options: nosniff` (prevents MIME type sniffing)
+  - `X-Frame-Options: DENY` (clickjacking defense)
+  - `X-XSS-Protection: 0` (modern standard)
+  - `X-Powered-By`: Completely removed to prevent server fingerprinting.
+
+### 4. Running the VAPT Security Test Suite
+A comprehensive 20-test automated security verification suite is included:
+```bash
+node scripts/test_vapt_security.js
+```
+The test verifies:
+- Blocking of `<script>`, `<img onerror>`, `<style>`, `@import`, and `javascript:` in request bodies.
+- Blocking of NoSQL operators and prototype pollution in JSON bodies and query parameters.
+- Blocking of encoded XSS vectors in URL query strings.
+- 401 Unauthorized rejection across all protected routes without tokens or with tampered tokens.
+- 413 Payload Too Large rejection for payloads exceeding size limits.
+- Proper execution of legitimate authenticated requests without false positives.
+

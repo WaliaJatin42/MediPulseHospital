@@ -30,11 +30,11 @@ const protect = async (req, res, next) => {
         });
       }
 
-      if (!user.isActive) {
-        logger.warn(`[Auth Middleware] Access denied: Account ${user.email} is deactivated`);
+      if (!user.isActive || user.isDeleted) {
+        logger.warn(`[Auth Middleware] Access denied: Account ${user.email} is deactivated or removed`);
         return res.status(403).json({
           success: false,
-          message: 'Your account has been deactivated. Please contact your hospital administrator.'
+          message: 'Your account has been deactivated or removed. Please contact your hospital administrator.'
         });
       }
 

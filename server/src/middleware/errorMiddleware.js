@@ -1,8 +1,14 @@
 const logger = require('../utils/logger');
 
 const errorHandler = (err, req, res, next) => {
-  let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  let statusCode = err.statusCode || err.status || (res.statusCode === 200 ? 500 : res.statusCode);
   let message = err.message || 'Internal Server Error';
+
+  // Handle Payload Too Large (CWE-400 DoS protection)
+  if (err.type === 'entity.too.large' || statusCode === 413) {
+    statusCode = 413;
+    message = 'Payload Too Large: Request body exceeds the allowed limit (10KB).';
+  }
 
   // Handle Mongoose duplicate key error (e.g. unique email)
   if (err.code === 11000) {
@@ -37,8 +43,7 @@ const errorHandler = (err, req, res, next) => {
 
   res.status(statusCode).json({
     success: false,
-    message,
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack
+    message
   });
 };
 

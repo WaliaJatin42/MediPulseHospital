@@ -13,16 +13,22 @@ const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const attendanceRoutes = require('./src/routes/attendanceRoutes');
 const salaryRoutes = require('./src/routes/salaryRoutes');
+const payrollRoutes = require('./src/routes/payrollRoutes');
+const { initPayrollScheduler } = require('./src/services/payrollService');
 const { errorHandler, notFound } = require('./src/middleware/errorMiddleware');
+const { vaptSecurityGuard } = require('./src/middleware/securityMiddleware');
+const { apiLimiter } = require('./src/middleware/rateLimiter');
 
 // Connect to MongoDB
 connectDB();
 
 const app = express();
+app.disable('x-powered-by');
 
 // Security Middlewares
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false
 }));
 
 const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
@@ -38,9 +44,14 @@ app.use(
 // Daily Request HTTP Logging with Morgan & Winston
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms', { stream: logger.stream }));
 
-// Body and Cookie Parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body and Cookie Parsers with strict size limits (10kb) to prevent payload Denial-of-Service
+app.use(express.json({
+  limit: '10kb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf ? buf.toString() : '';
+  }
+}));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
 // Passport Initialization
@@ -86,12 +97,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// API Rate Limiting across all /api/v1 endpoints
+app.use('/api/v1', apiLimiter);
+
+// Global VAPT Security Guard (blocks HTML, CSS, script injections, prototype pollution & NoSQL injections)
+app.use(vaptSecurityGuard);
+
 // API v1 Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/salary', salaryRoutes);
 app.use('/api/v1/salaries', salaryRoutes);
+app.use('/api/v1/payroll', payrollRoutes);
 
 /**
  * @openapi
@@ -122,4 +140,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   logger.info(`[Server] MediPulse API running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   logger.info(`[Server] Swagger Documentation available at http://localhost:${PORT}/api-docs`);
+  
+  // Initialize automated payroll cron scheduler & check date 1
+  initPayrollScheduler();
 });

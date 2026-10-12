@@ -522,6 +522,87 @@
           }
         }
       ]
+    },
+    {
+      "name": "Payroll & Salary Distribution",
+      "item": [
+        {
+          "name": "Process / Trigger Monthly Payroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": \"2026-10\",\n  \"forceRecalculate\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payroll/process",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "payroll", "process"]
+            },
+            "description": "Calculates attendance-based salary for all employees for the given month and disburses to accounts. SuperAdmin & HR Admin only."
+          }
+        },
+        {
+          "name": "Get My Monthly Pay Slips",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payroll/my",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "payroll", "my"]
+            },
+            "description": "Logged-in user retrieves their own historical monthly pay slips."
+          }
+        },
+        {
+          "name": "List All Monthly Payroll Records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payroll?month=2026-10&page=1&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "payroll"],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "2026-10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "SuperAdmin, HR Admin, HR Supervisor list month-wise hospital payroll records."
+          }
+        }
+      ]
     }
   ]
 }
