@@ -50,8 +50,8 @@ const createUserValidation = [
     .withMessage('Password must be at least 6 characters long'),
   body('role')
     .optional()
-    .isIn(['user', 'admin', 'superadmin'])
-    .withMessage('Role must be user, admin, or superadmin'),
+    .isIn(['user', 'supervisor', 'admin', 'superadmin'])
+    .withMessage('Role must be user, supervisor, admin, or superadmin'),
   body('designation')
     .optional()
     .trim(),
@@ -74,8 +74,8 @@ const updateUserValidation = [
     .withMessage('Name cannot exceed 100 characters'),
   body('role')
     .optional()
-    .isIn(['user', 'admin', 'superadmin'])
-    .withMessage('Role must be user, admin, or superadmin'),
+    .isIn(['user', 'supervisor', 'admin', 'superadmin'])
+    .withMessage('Role must be user, supervisor, admin, or superadmin'),
   body('designation')
     .optional()
     .trim(),
@@ -92,9 +92,19 @@ const updateUserValidation = [
   validate
 ];
 
+const resetPasswordValidation = [
+  body('newPassword')
+    .notEmpty()
+    .withMessage('New password is required')
+    .isLength({ min: 6 })
+    .withMessage('New password must be at least 6 characters long'),
+  validate
+];
+
 module.exports = {
   loginValidation,
   createUserValidation,
   updateUserValidation,
+  resetPasswordValidation,
   validate
 };

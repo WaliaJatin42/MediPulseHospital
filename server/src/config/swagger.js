@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'MediPulse Hospital User Management API v1',
+      title: 'MediPulse Hospital User & Attendance Management API v1',
       version: '1.0.0',
-      description: 'User Management System Backend API v1 providing Authentication (Login, Logout, Refresh, Google OAuth 2.0), User Profile retrieval by token, User CRUD (SuperAdmin manages all users; Admin manages only users created by them), and Health Check.',
+      description: 'User Management System Backend API v1 featuring 8 Department Admins, HR Hiring & Cross-Department Authority, Password Reset APIs, and 9-Hour Work Policy Punch-In/Punch-Out Attendance System.',
       contact: {
         name: 'MediPulse Hospital IT Support',
         email: 'support@medipulse.hospital'
@@ -29,7 +29,11 @@ const options = {
       },
       {
         name: 'User Management',
-        description: 'CRUD operations for staff accounts (SuperAdmin sees all users; Admin manages only users created by them)'
+        description: 'CRUD operations & Password Reset for staff (SuperAdmin can reset password for any user; HR Admin cross-dept; Dept Admin for their department/self)'
+      },
+      {
+        name: 'Attendance Management',
+        description: 'Dedicated Punch-In and Punch-Out APIs with 9-Hour Work Policy tracking (Visible to Superadmin, HR Admin, & HR Supervisors)'
       },
       {
         name: 'Health Check',
@@ -74,7 +78,7 @@ const options = {
       },
       '/api/v1/auth/login': {
         post: {
-          summary: 'Authenticate superadmin or staff with email and password',
+          summary: 'Authenticate superadmin, HR admin, department admin, supervisor, or staff',
           tags: ['Authentication'],
           requestBody: {
             required: true,
@@ -101,103 +105,80 @@ const options = {
                       name: 'Chief Medical Director',
                       email: 'superadmin@hospital.com',
                       role: 'superadmin',
-                      designation: 'Administrator',
-                      department: 'Executive Board',
-                      phone: '+1 (555) 000-0001',
-                      authProvider: 'local',
-                      isActive: true
+                      department: 'executive'
                     }
                   }
                 }
               }
-            },
-            401: {
-              description: 'Invalid email or password',
-              content: {
-                'application/json': {
-                  example: {
-                    success: false,
-                    message: 'Invalid email or password'
-                  }
-                }
-              }
-            },
-            403: {
-              description: 'Account deactivated',
-              content: {
-                'application/json': {
-                  example: {
-                    success: false,
-                    message: 'Your account has been deactivated.'
-                  }
-                }
-              }
             }
           }
         }
       },
-      '/api/v1/auth/google': {
-        get: {
-          summary: 'Trigger Google OAuth 2.0 authentication flow',
-          tags: ['Authentication'],
-          responses: {
-            302: { description: 'Redirects to Google OAuth 2.0 consent screen' }
-          }
-        }
-      },
-      '/api/v1/auth/google/callback': {
-        get: {
-          summary: 'Google OAuth 2.0 callback endpoint',
-          tags: ['Authentication'],
-          responses: {
-            200: {
-              description: 'Google authentication successful',
-              content: {
-                'application/json': {
-                  example: {
-                    success: true,
-                    message: 'Google authentication successful',
-                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-                  }
-                }
-              }
-            },
-            302: { description: 'Redirects to frontend OAuth callback route' }
-          }
-        }
-      },
-      '/api/v1/auth/refresh': {
+      '/api/v1/users/{id}/reset-password': {
         post: {
-          summary: 'Refresh access token using httpOnly refresh token cookie',
-          tags: ['Authentication'],
+          summary: 'Reset Password (SuperAdmin resets any user; HR Admin cross-dept; Dept Admin resets their department staff or self)',
+          tags: ['User Management'],
+          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+          parameters: [
+            { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                example: {
+                  newPassword: 'NewPassword123!'
+                }
+              }
+            }
+          },
           responses: {
             200: {
-              description: 'Token refreshed successfully',
+              description: 'Password reset successfully',
               content: {
                 'application/json': {
                   example: {
                     success: true,
-                    message: 'Token refreshed successfully',
-                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                    message: 'Password reset successfully for user doctor@hospital.com'
                   }
                 }
               }
-            }
+            },
+            403: { description: 'Permission denied' },
+            404: { description: 'User not found' }
           }
         }
       },
-      '/api/v1/auth/logout': {
+      '/api/v1/attendance/punch-in': {
         post: {
-          summary: 'Sign out user and clear auth cookies',
-          tags: ['Authentication'],
+          summary: 'Punch-In / Start 9-hour work shift',
+          tags: ['Attendance Management'],
+          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+          requestBody: {
+            content: {
+              'application/json': {
+                example: {
+                  workMode: 'on_site',
+                  notes: 'Morning shift arrival'
+                }
+              }
+            }
+          },
           responses: {
-            200: {
-              description: 'Logged out successfully',
+            201: {
+              description: 'Punched in successfully',
               content: {
                 'application/json': {
                   example: {
                     success: true,
-                    message: 'Logged out successfully'
+                    message: 'Punched in successfully. 9-hour shift started.',
+                    attendance: {
+                      _id: '65c8f1e29a34b2811a45d0a1',
+                      date: '2026-10-08',
+                      punchIn: '2026-10-08T09:00:00.000Z',
+                      status: 'punched_in',
+                      shiftRequiredHours: 9
+                    }
                   }
                 }
               }
@@ -205,35 +186,74 @@ const options = {
           }
         }
       },
-      '/api/v1/users/me': {
-        get: {
-          summary: 'Get logged-in user details by token',
-          tags: ['User Profile'],
+      '/api/v1/attendance/punch-out': {
+        post: {
+          summary: 'Punch-Out / Calculate 9-hour shift work duration and status',
+          tags: ['Attendance Management'],
           security: [{ cookieAuth: [] }, { bearerAuth: [] }],
           responses: {
             200: {
-              description: 'User profile retrieved successfully',
+              description: 'Punched out successfully',
               content: {
                 'application/json': {
                   example: {
                     success: true,
-                    user: {
-                      _id: '65c8f1e29a34b2811a45d0f1',
-                      name: 'Chief Medical Director',
-                      email: 'superadmin@hospital.com',
-                      role: 'superadmin'
+                    message: 'Punched out successfully. 9-hour shift completed (9.2 hrs).',
+                    attendance: {
+                      _id: '65c8f1e29a34b2811a45d0a1',
+                      punchIn: '2026-10-08T09:00:00.000Z',
+                      punchOut: '2026-10-08T18:12:00.000Z',
+                      totalWorkHours: 9.2,
+                      isShiftCompleted: true,
+                      status: 'present'
                     }
                   }
                 }
               }
-            },
-            401: { description: 'Unauthorized' }
+            }
+          }
+        }
+      },
+      '/api/v1/attendance': {
+        get: {
+          summary: 'Get attendance records (Visible to Superadmin, HR Admin, HR Supervisors & Dept Admins)',
+          tags: ['Attendance Management'],
+          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+          parameters: [
+            { in: 'query', name: 'department', schema: { type: 'string' }, description: 'Filter by department (hr, pharmacy, technical, security, support, legal, accounts)' },
+            { in: 'query', name: 'date', schema: { type: 'string' }, description: 'Filter by date (YYYY-MM-DD)' },
+            { in: 'query', name: 'status', schema: { type: 'string' }, description: 'Filter by status (present, late, half_day, short_hours, punched_in)' }
+          ],
+          responses: {
+            200: {
+              description: 'Attendance list',
+              content: {
+                'application/json': {
+                  example: {
+                    success: true,
+                    count: 1,
+                    data: [
+                      {
+                        _id: '65c8f1e29a34b2811a45d0a1',
+                        user: { name: 'Michael Chang', email: 'pharmacist@hospital.com', department: 'pharmacy' },
+                        date: '2026-10-08',
+                        punchIn: '2026-10-08T09:00:00.000Z',
+                        punchOut: '2026-10-08T18:00:00.000Z',
+                        totalWorkHours: 9,
+                        isShiftCompleted: true,
+                        status: 'present'
+                      }
+                    ]
+                  }
+                }
+              }
+            }
           }
         }
       },
       '/api/v1/users': {
         post: {
-          summary: 'Create a new user (SuperAdmin can create any role; Admin creates users owned by them)',
+          summary: 'Create user (HR Admin & HR Supervisor can create users under ANY department admin; Dept Admin creates for their department)',
           tags: ['User Management'],
           security: [{ cookieAuth: [] }, { bearerAuth: [] }],
           requestBody: {
@@ -241,126 +261,46 @@ const options = {
             content: {
               'application/json': {
                 example: {
-                  name: 'Dr. Sarah Jenkins',
-                  email: 'doctor@hospital.com',
-                  password: 'Doctor123!',
+                  name: 'Michael Chang',
+                  email: 'pharmacist@hospital.com',
+                  password: 'User123!',
                   role: 'user',
-                  designation: 'Doctor',
-                  department: 'Cardiology',
-                  phone: '+1 (555) 000-0003'
+                  designation: 'Pharmacist',
+                  department: 'pharmacy',
+                  phone: '+1 (555) 000-0203'
                 }
               }
             }
           },
           responses: {
-            201: {
-              description: 'User created successfully',
-              content: {
-                'application/json': {
-                  example: {
-                    success: true,
-                    message: 'User created successfully',
-                    user: {
-                      _id: '65c8f1e29a34b2811a45d0f2',
-                      name: 'Dr. Sarah Jenkins',
-                      email: 'doctor@hospital.com',
-                      role: 'user',
-                      createdBy: '65c8f1e29a34b2811a45d0f1'
-                    }
-                  }
-                }
-              }
-            },
-            400: { description: 'Validation error or email exists' },
-            403: { description: 'Permission denied' }
+            201: { description: 'User created successfully' }
           }
         },
         get: {
-          summary: 'List users (SuperAdmin sees ALL users; Admin sees ONLY users created by them)',
+          summary: 'List users (HR Admin & HR Supervisor see all users across all departments; Dept Admin sees their department)',
           tags: ['User Management'],
           security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          parameters: [
-            { in: 'query', name: 'search', schema: { type: 'string' }, description: 'Search term for name, email, department, designation' },
-            { in: 'query', name: 'page', schema: { type: 'integer', default: 1 }, description: 'Page number' },
-            { in: 'query', name: 'limit', schema: { type: 'integer', default: 50 }, description: 'Page limit' }
-          ],
           responses: {
             200: {
-              description: 'List of accessible users',
+              description: 'Users list',
               content: {
                 'application/json': {
                   example: {
                     success: true,
                     count: 1,
-                    users: [
+                    data: [
                       {
                         _id: '65c8f1e29a34b2811a45d0f2',
-                        name: 'Dr. Sarah Jenkins',
-                        email: 'doctor@hospital.com',
+                        name: 'Michael Chang',
+                        email: 'pharmacist@hospital.com',
                         role: 'user',
-                        createdBy: {
-                          _id: '65c8f1e29a34b2811a45d0f1',
-                          name: 'Chief Medical Director',
-                          email: 'superadmin@hospital.com'
-                        }
+                        department: 'pharmacy'
                       }
                     ]
                   }
                 }
               }
-            },
-            403: { description: 'Forbidden' }
-          }
-        }
-      },
-      '/api/v1/users/{id}': {
-        get: {
-          summary: 'Get user details by ID (Admin can only view users created by them)',
-          tags: ['User Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          parameters: [
-            { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
-          ],
-          responses: {
-            200: { description: 'User profile retrieved' },
-            403: { description: 'Permission denied: Not created by this Admin' },
-            404: { description: 'User not found' }
-          }
-        },
-        patch: {
-          summary: 'Update user details (Admin can only update users created by them)',
-          tags: ['User Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          parameters: [
-            { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
-          ],
-          requestBody: {
-            content: {
-              'application/json': {
-                example: {
-                  name: 'Dr. Sarah Jenkins',
-                  designation: 'Senior Cardiologist'
-                }
-              }
             }
-          },
-          responses: {
-            200: { description: 'User updated successfully' },
-            403: { description: 'Permission denied: Not created by this Admin' },
-            404: { description: 'User not found' }
-          }
-        },
-        delete: {
-          summary: 'Delete user account (Admin can only delete users created by them)',
-          tags: ['User Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          parameters: [
-            { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
-          ],
-          responses: {
-            200: { description: 'User deleted successfully' },
-            403: { description: 'Permission denied: Not created by this Admin' },
-            404: { description: 'User not found' }
           }
         }
       }

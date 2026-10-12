@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'admin', 'superadmin'],
+      enum: ['user','supervisor' , 'admin', 'superadmin'],
       default: 'user'
     },
     designation: {
@@ -73,6 +73,25 @@ const userSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
       index: true
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     },
     refreshToken: {
       type: String,

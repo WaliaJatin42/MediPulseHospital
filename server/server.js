@@ -11,6 +11,7 @@ const connectDB = require('./src/config/db');
 const passport = require('./src/config/passport');
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
+const attendanceRoutes = require('./src/routes/attendanceRoutes');
 const { errorHandler, notFound } = require('./src/middleware/errorMiddleware');
 
 // Connect to MongoDB
@@ -87,6 +88,7 @@ app.use((req, res, next) => {
 // API v1 Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/attendance', attendanceRoutes);
 
 /**
  * @openapi
