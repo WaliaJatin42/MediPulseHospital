@@ -20,6 +20,16 @@ const protect = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Security Isolation: Patient Portal tokens cannot access internal hospital staff endpoints
+      if (decoded.aud === 'patient_portal') {
+        logger.warn(`[Auth Middleware] Access denied: Portal token attempted calling staff route ${req.method} ${req.originalUrl}`);
+        return res.status(401).json({
+          success: false,
+          message: 'Not authorized: Patient portal tokens cannot call staff endpoints'
+        });
+      }
+
       const user = await User.findById(decoded.id);
 
       if (!user) {

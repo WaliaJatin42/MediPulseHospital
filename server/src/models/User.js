@@ -45,9 +45,18 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['superadmin', 'admin', 'supervisor', 'user'],
+      enum: [
+        'superadmin', 'admin', 'supervisor', 'user',
+        'doctor', 'nurse', 'receptionist', 'lab_technician',
+        'pathologist', 'radiologist', 'pharmacist', 'billing_clerk',
+        'tpa_executive', 'records_officer'
+      ],
       default: 'user',
       index: true
+    },
+    clinicalRole: {
+      type: String,
+      default: null
     },
     designation: {
       type: String,
@@ -81,6 +90,17 @@ const userSchema = new mongoose.Schema(
     joiningDate: {
       type: Date,
       default: Date.now
+    },
+    branchIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Branch'
+      }
+    ],
+    activeBranchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Branch',
+      default: null
     },
     salary: {
       type: Number,

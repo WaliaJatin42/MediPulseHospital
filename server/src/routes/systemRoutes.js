@@ -13,6 +13,7 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 // Public endpoints
+router.get('/health', (req, res) => res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() }));
 router.get('/health/ready', getReadiness);
 router.get('/version', getVersion);
 

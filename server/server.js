@@ -56,9 +56,21 @@ const retentionRoutes = require('./src/routes/retentionRoutes');
 const legalHoldRoutes = require('./src/routes/legalHoldRoutes');
 const systemRoutes = require('./src/routes/systemRoutes');
 
-
-const { createSuperadmin, demoteSuperadmin, deleteSuperadmin } = require('./src/controllers/authController');
+// Clinical & Patient Operations Modules
+const branchRoutes = require('./src/routes/branchRoutes');
+const patientRoutes = require('./src/routes/patientRoutes');
+const facilityRoutes = require('./src/routes/facilityRoutes');
+const emrRoutes = require('./src/routes/emrRoutes');
+const ipdRoutes = require('./src/routes/ipdRoutes');
+const orderRoutes = require('./src/routes/orderRoutes');
+const diagnosticRoutes = require('./src/routes/diagnosticRoutes');
+const acuteCareRoutes = require('./src/routes/acuteCareRoutes');
+const billingRoutes = require('./src/routes/billingRoutes');
+const supportOpsRoutes = require('./src/routes/supportOpsRoutes');
+const portalRoutes = require('./src/routes/portalRoutes');
+const fhirRoutes = require('./src/routes/fhirRoutes');
 const { protect, authorize } = require('./src/middleware/authMiddleware');
+const { createSuperadmin, demoteSuperadmin, deleteSuperadmin } = require('./src/controllers/authController');
 const { initPayrollScheduler } = require('./src/services/payrollService');
 const { errorHandler, notFound } = require('./src/middleware/errorMiddleware');
 const { vaptSecurityGuard } = require('./src/middleware/securityMiddleware');
@@ -211,6 +223,20 @@ const mountRoutes = (prefix) => {
   app.use(`${prefix}`, retentionRoutes);
   app.use(`${prefix}/legal-holds`, legalHoldRoutes);
   app.use(`${prefix}`, systemRoutes);
+
+  // Clinical & Patient Operations Modules
+  app.use(`${prefix}`, branchRoutes);
+  app.use(`${prefix}`, patientRoutes);
+  app.use(`${prefix}`, facilityRoutes);
+  app.use(`${prefix}`, emrRoutes);
+  app.use(`${prefix}`, ipdRoutes);
+  app.use(`${prefix}`, orderRoutes);
+  app.use(`${prefix}`, diagnosticRoutes);
+  app.use(`${prefix}`, acuteCareRoutes);
+  app.use(`${prefix}`, billingRoutes);
+  app.use(`${prefix}`, supportOpsRoutes);
+  app.use(`${prefix}`, portalRoutes);
+  app.use(`${prefix}`, fhirRoutes);
 };
 
 mountRoutes('/api/v1');

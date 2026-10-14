@@ -1,5 +1,6 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerPaths = require('./swaggerPaths');
+const swaggerClinicalPaths = require('./swaggerClinicalPaths');
 
 const options = {
   definition: {
@@ -7,7 +8,7 @@ const options = {
     info: {
       title: 'MediPulse Hospital Management System API v1',
       version: '1.0.0',
-      description: 'Enterprise Hospital Management Backend API across 7 Core Departments (HR, Pharmacy, Security, Finance, Support, Legal, Technical) and Clinical Units (Doctors, Nursing, Laboratory, Radiology) with 3-tier hierarchy (Admin, Supervisor, User), Superadmin hospital-wide governance, Firebase Cloud Messaging (FCM) push notifications, 9-Hour work policy, automated payroll, and tamper-evident SHA-256 hash-chained audit logging.',
+      description: 'Enterprise Hospital Management Backend API across 7 Core Departments (HR, Pharmacy, Security, Finance, Support, Legal, Technical) and Clinical Operations (Patients, Doctor EMR, IPD Bed Census, CPOE Orders, Diagnostics, Emergency ESI Triage, Operation Theatre, Billing & Sequential FY Invoices, Support Ops, Patient Portal, and FHIR R4 Interoperability Facade) with two-branch architecture (MPH-CEN Central and MPH-SOU South), Firebase Cloud Messaging (FCM) push notifications, and tamper-evident SHA-256 hash-chained audit logging.',
       contact: {
         name: 'MediPulse Hospital IT Systems',
         email: 'systems@medipulse.hospital'
@@ -24,6 +25,18 @@ const options = {
     ],
     tags: [
       { name: 'Authentication', description: 'Session lifecycle, password reset, MFA, and Google OAuth' },
+      { name: 'Clinical: Branches & Facility', description: 'Two-branch context switching, inter-branch stock transfers, facility hierarchy tree, bed census, and bed lifecycle' },
+      { name: 'Clinical: Patients & Identity', description: 'Patient registration, UHID generation, duplicate checking, wristbands, allergies, and consents' },
+      { name: 'Clinical: Access & Care Teams', description: 'Care team episode assignment, 2-hour emergency break-glass grants, and sensitive record restriction flags' },
+      { name: 'Clinical: OPD & Appointments', description: 'Doctor schedule slots, double-booking protection, queue tokens, public TV display feed, SOAP notes with SHA-256 digital locking, and longitudinal EMR' },
+      { name: 'Clinical: CPOE & Safety Checks', description: 'Unified CPOE orders, drug-drug interaction screening, allergy warnings, and outbox billing charge events' },
+      { name: 'Clinical: Diagnostics & Lab', description: 'Barcoded sample collection, accessioning, test results, pathologist validation, critical value auto-alerts, and radiology PACS linking' },
+      { name: 'Clinical: IPD & Nursing', description: 'Inpatient admissions, bed transfers, vitals charting, multi-department discharge clearance checklist (4 depts), and final discharge' },
+      { name: 'Clinical: Acute Care & Emergency', description: 'Emergency ESI 1-5 triage, hospital-wide Code Blue FCM broadcast, OT bookings with conflict checks, ICU flowsheets, and clinical dispensing' },
+      { name: 'Clinical: Billing & Revenue', description: 'Billing accounts, manual charges, advance deposits, non-gap sequential FY invoices, payments with receipts, and role-tiered discounts' },
+      { name: 'Clinical: Support Services', description: 'Blood bank inventory, diet orders, ambulance GPS, certificates with public QR verification, and quality CAPA' },
+      { name: 'Clinical: Patient Portal', description: 'Dedicated patient auth audience (aud: patient_portal), OTP login, profile dashboard, and doctor-released diagnostic results' },
+      { name: 'Clinical: FHIR R4 Facade', description: 'FHIR R4 interoperability resources (/fhir/Patient, /fhir/Encounter, /fhir/Observation)' },
       { name: 'Superadmin Governance', description: 'Superadmin creation, multi-superadmin protection, and hospital governance' },
       { name: 'User Management', description: 'Staff accounts, creator-scoping vs department-scoping, transfers, and reassignment' },
       { name: 'Notifications & FCM Push', description: 'In-app notification inbox, channel preferences, and Firebase Cloud Messaging push dispatch' },
@@ -70,7 +83,8 @@ const swaggerSpec = swaggerJsdoc(options);
 // Merge comprehensive path definitions with pre-filled requestBody schemas and parameters
 swaggerSpec.paths = {
   ...swaggerSpec.paths,
-  ...swaggerPaths
+  ...swaggerPaths,
+  ...swaggerClinicalPaths
 };
 
 module.exports = swaggerSpec;
