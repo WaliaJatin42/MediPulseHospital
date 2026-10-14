@@ -4,8 +4,24 @@ const {
   login,
   refresh,
   logout,
-  googleCallback
+  changePassword,
+  forgotPassword,
+  resetPassword,
+  googleCallback,
+  setupMfa,
+  verifyMfa,
+  disableMfa,
+  regenerateRecoveryCodes,
+  solveMfaChallenge,
+  unlockUser,
+  getSessions,
+  deleteSession,
+  logoutAll,
+  createSuperadmin,
+  demoteSuperadmin,
+  deleteSuperadmin
 } = require('../controllers/authController');
+const { protect, authorize } = require('../middleware/authMiddleware');
 const { loginValidation } = require('../utils/validators');
 const { authLimiter } = require('../middleware/rateLimiter');
 
@@ -17,22 +33,6 @@ const router = express.Router();
  *   post:
  *     summary: Sign in with email and password
  *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           example:
- *             email: "superadmin@hospital.com"
- *             password: "SuperAdmin123!"
- *     responses:
- *       200:
- *         description: Authentication successful
- *       401:
- *         description: Invalid credentials
- *       403:
- *         description: Account deactivated
- *       429:
- *         description: Too many authentication attempts
  */
 router.post('/login', authLimiter, loginValidation, login);
 
@@ -42,11 +42,6 @@ router.post('/login', authLimiter, loginValidation, login);
  *   post:
  *     summary: Refresh access token
  *     tags: [Authentication]
- *     responses:
- *       200:
- *         description: Token refreshed successfully
- *       401:
- *         description: Invalid or expired refresh token
  */
 router.post('/refresh', refresh);
 
@@ -54,13 +49,40 @@ router.post('/refresh', refresh);
  * @openapi
  * /api/v1/auth/logout:
  *   post:
- *     summary: Sign out and clear auth cookies
+ *     summary: Sign out and clear auth tokens
  *     tags: [Authentication]
- *     responses:
- *       200:
- *         description: Logged out successfully
  */
 router.post('/logout', logout);
+
+/**
+ * @openapi
+ * /api/v1/auth/change-password:
+ *   post:
+ *     summary: Change password for currently authenticated user
+ *     tags: [Authentication]
+ *     security:
+ *       - cookieAuth: []
+ *       - bearerAuth: []
+ */
+router.post('/change-password', protect, changePassword);
+
+/**
+ * @openapi
+ * /api/v1/auth/forgot-password:
+ *   post:
+ *     summary: Request password reset token
+ *     tags: [Authentication]
+ */
+router.post('/forgot-password', authLimiter, forgotPassword);
+
+/**
+ * @openapi
+ * /api/v1/auth/reset-password:
+ *   post:
+ *     summary: Reset password with reset token
+ *     tags: [Authentication]
+ */
+router.post('/reset-password', authLimiter, resetPassword);
 
 /**
  * @openapi
@@ -68,9 +90,6 @@ router.post('/logout', logout);
  *   get:
  *     summary: Trigger Google OAuth 2.0 Login Flow
  *     tags: [Authentication]
- *     responses:
- *       302:
- *         description: Redirect to Google consent screen
  */
 router.get(
   '/google',
@@ -78,22 +97,30 @@ router.get(
   passport.authenticate('google', { scope: ['profile', 'email'], session: false })
 );
 
-/**
- * @openapi
- * /api/v1/auth/google/callback:
- *   get:
- *     summary: Google OAuth 2.0 callback
- *     tags: [Authentication]
- *     responses:
- *       200:
- *         description: Google authentication successful
- *       302:
- *         description: Redirect to frontend application
- */
 router.get(
   '/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=google_failed` }),
   googleCallback
 );
+
+// MFA Routes
+router.post('/mfa/setup', protect, setupMfa);
+router.post('/mfa/verify', protect, verifyMfa);
+router.post('/mfa/disable', protect, disableMfa);
+router.post('/mfa/recovery-codes/regenerate', protect, regenerateRecoveryCodes);
+router.post('/mfa/challenge', authLimiter, solveMfaChallenge);
+
+// Account Lockout Management
+router.post('/unlock/:userId', protect, authorize('superadmin', 'admin'), unlockUser);
+
+// Session Management
+router.get('/sessions', protect, getSessions);
+router.delete('/sessions/:id', protect, deleteSession);
+router.post('/logout-all', protect, logoutAll);
+
+// Superadmin Management
+router.post('/superadmins', protect, authorize('superadmin'), createSuperadmin);
+router.patch('/superadmins/:id/demote', protect, authorize('superadmin'), demoteSuperadmin);
+router.delete('/superadmins/:id', protect, authorize('superadmin'), deleteSuperadmin);
 
 module.exports = router;

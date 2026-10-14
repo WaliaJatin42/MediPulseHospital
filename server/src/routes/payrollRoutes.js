@@ -1,124 +1,57 @@
 const express = require('express');
 const {
-  processMonthlyPayroll,
-  getMonthlyPayrolls,
-  getMyPayroll,
-  getPayrollById
+  triggerPayrollRun,
+  getPayrollRuns,
+  getPayrollRunById,
+  getMyPayslips,
+  getMyMonthPayslip,
+  approvePayrollRun,
+  reversePayrollRun
 } = require('../controllers/payrollController');
-const { protect } = require('../middleware/authMiddleware');
+const {
+  getStatutoryReport,
+  createPayrollAdjustment,
+  getPendingAdjustments,
+  lockPayrollRun,
+  unlockPayrollRun,
+  publishPayslips,
+  exportPayrollRun,
+  getBankFile,
+  getMyPayslipPdf,
+  addVariableEarnings
+} = require('../controllers/payrollExtrasController');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 router.use(protect);
 
-/**
- * @openapi
- * /api/v1/payroll/process:
- *   post:
- *     summary: Trigger attendance-based monthly salary calculation & distribution (SuperAdmin, HR Admin only)
- *     tags: [Payroll & Salary Distribution]
- *     security:
- *       - cookieAuth: []
- *       - bearerAuth: []
- *     requestBody:
- *       content:
- *         application/json:
- *           example:
- *             month: "2026-09"
- *             forceRecalculate: true
- *     responses:
- *       200:
- *         description: Monthly payroll processed and disbursed successfully
- *       403:
- *         description: Permission denied - Only SuperAdmin or HR Admin authorized
- */
-router.post('/process', processMonthlyPayroll);
+// Specific paths before parameterized /:runId
+router.get('/me/:month/payslip.pdf', getMyPayslipPdf);
+router.get('/me/:month/payslip', getMyMonthPayslip);
+router.get('/me', getMyPayslips);
 
-/**
- * @openapi
- * /api/v1/payroll/my:
- *   get:
- *     summary: Get current logged-in employee's monthly pay slips
- *     tags: [Payroll & Salary Distribution]
- *     security:
- *       - cookieAuth: []
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: month
- *         schema:
- *           type: string
- *         description: Filter by month (YYYY-MM)
- *     responses:
- *       200:
- *         description: Pay slips retrieved successfully
- */
-router.get('/my', getMyPayroll);
+router.get('/adjustments/pending', authorize('superadmin', 'admin'), getPendingAdjustments);
+router.post('/adjustments', authorize('superadmin'), createPayrollAdjustment);
+router.post('/variable-earnings', authorize('superadmin', 'admin'), addVariableEarnings);
 
-/**
- * @openapi
- * /api/v1/payroll:
- *   get:
- *     summary: List all monthly payroll records (SuperAdmin, HR Admin, HR Supervisor only)
- *     tags: [Payroll & Salary Distribution]
- *     security:
- *       - cookieAuth: []
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: month
- *         schema:
- *           type: string
- *         description: Filter by month (YYYY-MM)
- *       - in: query
- *         name: department
- *         schema:
- *           type: string
- *         description: Filter by department
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by employee name or transaction reference
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: List of payroll records
- *       403:
- *         description: Permission denied
- */
-router.get('/', getMonthlyPayrolls);
+// Run payroll execution (with idempotency)
+router.post('/run', authorize('superadmin'), triggerPayrollRun);
+router.post('/process', authorize('superadmin'), triggerPayrollRun);
 
-/**
- * @openapi
- * /api/v1/payroll/{id}:
- *   get:
- *     summary: Get specific payroll record by ID
- *     tags: [Payroll & Salary Distribution]
- *     security:
- *       - cookieAuth: []
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Payroll record details
- *       403:
- *         description: Permission denied
- *       404:
- *         description: Payroll record not found
- */
-router.get('/:id', getPayrollById);
+// List runs
+router.get('/', authorize('superadmin', 'admin'), getPayrollRuns);
+
+// Actions on specific runId
+router.get('/:runId/export', authorize('superadmin', 'admin'), exportPayrollRun);
+router.get('/:runId/bank-file', authorize('superadmin', 'admin'), getBankFile);
+router.get('/:runId/statutory-report', authorize('superadmin', 'admin'), getStatutoryReport);
+router.post('/:runId/lock', authorize('superadmin'), lockPayrollRun);
+router.post('/:runId/unlock', authorize('superadmin'), unlockPayrollRun);
+router.post('/:runId/payslips/publish', authorize('superadmin'), publishPayslips);
+router.post('/:runId/approve', authorize('superadmin'), approvePayrollRun);
+router.post('/:runId/reverse', authorize('superadmin'), reversePayrollRun);
+
+router.get('/:runId', authorize('superadmin', 'admin'), getPayrollRunById);
 
 module.exports = router;

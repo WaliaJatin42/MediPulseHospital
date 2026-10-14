@@ -2,11 +2,19 @@ const mongoose = require('mongoose');
 
 const payrollSchema = new mongoose.Schema(
   {
+    runId: {
+      type: String,
+      index: true
+    },
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'user_id is required'],
       index: true
+    },
+    employeeId: {
+      type: String,
+      default: ''
     },
     user_name: {
       type: String,
@@ -25,7 +33,7 @@ const payrollSchema = new mongoose.Schema(
       trim: true
     },
     month: {
-      type: String, // Format: YYYY-MM, e.g., '2026-09'
+      type: String, // Format: YYYY-MM
       required: [true, 'Payroll month (YYYY-MM) is required'],
       index: true
     },
@@ -33,6 +41,10 @@ const payrollSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'baseSalary is required'],
       min: [0, 'Base salary cannot be negative']
+    },
+    allowances: {
+      type: Number,
+      default: 0
     },
     totalDaysInMonth: {
       type: Number,
@@ -51,6 +63,10 @@ const payrollSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    paidLeaveDays: {
+      type: Number,
+      default: 0
+    },
     absentDays: {
       type: Number,
       default: 0
@@ -59,19 +75,28 @@ const payrollSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
-    calculatedSalary: {
+    grossSalary: {
       type: Number,
-      required: [true, 'calculatedSalary is required'],
-      min: [0, 'Calculated salary cannot be negative']
+      default: 0
     },
     deductions: {
       type: Number,
       default: 0
     },
+    calculatedSalary: {
+      type: Number,
+      required: [true, 'calculatedSalary is required'],
+      min: [0, 'Calculated salary cannot be negative']
+    },
+    netSalary: {
+      type: Number,
+      default: 0
+    },
     status: {
       type: String,
-      enum: ['pending', 'processed', 'paid'],
-      default: 'paid'
+      enum: ['pending', 'processed', 'approved', 'paid', 'reversed'],
+      default: 'paid',
+      index: true
     },
     disbursedAt: {
       type: Date,
@@ -89,6 +114,32 @@ const payrollSchema = new mongoose.Schema(
     remarks: {
       type: String,
       default: ''
+    },
+    // Detailed itemized breakdown
+    overtimeHours: { type: Number, default: 0 },
+    overtimePay: { type: Number, default: 0 },
+    bonuses: { type: Number, default: 0 },
+    advancesDeducted: { type: Number, default: 0 },
+    arrears: { type: Number, default: 0 },
+    adjustments: { type: Number, default: 0 },
+    variableEarnings: { type: Number, default: 0 },
+    statutoryBreakdown: {
+      pfEmployee: { type: Number, default: 0 },
+      pfEmployer: { type: Number, default: 0 },
+      insuranceEmployee: { type: Number, default: 0 },
+      insuranceEmployer: { type: Number, default: 0 },
+      tax: { type: Number, default: 0 }
+    },
+    splitTransfers: [
+      {
+        department: String,
+        days: Number,
+        amount: Number
+      }
+    ],
+    isPayslipVisible: {
+      type: Boolean,
+      default: false
     }
   },
   {
@@ -96,8 +147,8 @@ const payrollSchema = new mongoose.Schema(
   }
 );
 
-// Compound unique index: Each employee can only have one payroll record per month
-payrollSchema.index({ user_id: 1, month: 1 }, { unique: true });
+// Compound unique index per employee per month per run (or per month for non-reversed)
+payrollSchema.index({ user_id: 1, month: 1, runId: 1 });
 
 // Virtual aliases
 payrollSchema.virtual('userId').get(function () {

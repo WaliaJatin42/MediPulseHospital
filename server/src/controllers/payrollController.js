@@ -1,171 +1,273 @@
 const Payroll = require('../models/Payroll');
-const { calculateAndDisburseMonthlyPayroll } = require('../services/payrollService');
+const PayrollRun = require('../models/PayrollRun');
+const { runMonthlyPayroll } = require('../services/payrollService');
 const logger = require('../utils/logger');
+const { recordAuditLog } = require('../utils/auditLogger');
 
-const isHRRole = (user) => {
-  if (!user) return false;
-  const dept = (user.department || '').toLowerCase();
-  const desig = (user.designation || '').toLowerCase();
-  return dept === 'hr' || desig.includes('hr');
-};
-
-const canManagePayroll = (user) => {
-  if (!user) return false;
-  if (user.role === 'superadmin') return true;
-  if ((user.role === 'admin' || user.role === 'supervisor') && isHRRole(user)) {
-    return true;
-  }
-  return false;
-};
-
-// @desc    Process / Trigger monthly payroll calculation based on attendance
-// @route   POST /api/v1/payroll/process
-// @access  Private (SuperAdmin, HR Admin only)
-const processMonthlyPayroll = async (req, res, next) => {
+// @desc    Run monthly payroll calculation (supports dry-run)
+// @route   POST /api/v1/payroll/run or POST /api/payroll/run
+// @access  Private (SuperAdmin only)
+const triggerPayrollRun = async (req, res, next) => {
   try {
-    if (!canManagePayroll(req.user)) {
-      logger.warn(`[Payroll Controller] Permission denied: ${req.user.email} (${req.user.role}) attempted to trigger payroll process`);
+    if (req.user.role !== 'superadmin') {
       return res.status(403).json({
         success: false,
-        message: 'Permission denied: Only SuperAdmin or HR Admin can trigger payroll calculation.'
+        message: 'Permission denied: Only Superadmin can run hospital payroll.'
       });
     }
 
-    const { month, forceRecalculate, grantFullIfNoRecords } = req.body;
+    const { month, dryRun = false } = req.body;
 
-    logger.info(`[Payroll Controller] Manual payroll execution triggered by ${req.user.email} for month: ${month || 'previous month'}`);
-
-    const result = await calculateAndDisburseMonthlyPayroll(month, {
-      forceRecalculate: !!forceRecalculate,
-      grantFullIfNoRecords: !!grantFullIfNoRecords,
-      processedAutomatically: false
+    const result = await runMonthlyPayroll({
+      month,
+      isDryRun: !!dryRun,
+      caller: req.user,
+      req
     });
 
     res.status(200).json({
       success: true,
-      message: `Monthly payroll processed successfully for month ${result.month}`,
+      message: dryRun
+        ? `Dry-run completed for ${result.month}. No records committed.`
+        : `Payroll run ${result.runId} successfully generated and committed for ${result.month}.`,
       data: result
     });
   } catch (error) {
-    logger.error(`[Payroll Controller Error] processMonthlyPayroll failed: ${error.message}`, { stack: error.stack });
+    logger.error(`[Payroll Controller Error] triggerPayrollRun failed: ${error.message}`, { stack: error.stack });
     next(error);
   }
 };
 
-// @desc    Get monthly payroll records list
-// @route   GET /api/v1/payroll
-// @access  Private (SuperAdmin, HR Admin, HR Supervisor)
-const getMonthlyPayrolls = async (req, res, next) => {
+// @desc    List payroll runs and statuses
+// @route   GET /api/v1/payroll or GET /api/payroll
+// @access  Private (SuperAdmin, Finance Admin, HR Admin)
+const getPayrollRuns = async (req, res, next) => {
   try {
-    if (!canManagePayroll(req.user)) {
+    const caller = req.user;
+    const isSuperAdmin = caller.role === 'superadmin';
+    const isFinanceOrHR = caller.role === 'admin' && (caller.department === 'finance' || caller.department === 'hr');
+
+    if (!isSuperAdmin && !isFinanceOrHR) {
       return res.status(403).json({
         success: false,
-        message: 'Permission denied: Only SuperAdmin, HR Admin, or Supervisors under HR department can view all payroll records.'
+        message: 'Permission denied: Only Superadmin, Finance Admin, and HR Admin can view payroll run summaries.'
       });
     }
 
-    let filter = {};
-    const { month, department, status, search } = req.query;
-
-    if (month) filter.month = month;
-    if (department) filter.department = department.toLowerCase();
-    if (status) filter.status = status;
-
-    if (search) {
-      const searchRegex = { $regex: search, $options: 'i' };
-      filter.$or = [
-        { user_name: searchRegex },
-        { department: searchRegex },
-        { designation: searchRegex },
-        { transactionReference: searchRegex }
-      ];
-    }
-
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 50;
-    const skip = (page - 1) * limit;
-
-    const total = await Payroll.countDocuments(filter);
-    const payrolls = await Payroll.find(filter)
-      .populate('user_id', 'name email role department designation')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    logger.info(`[Payroll Controller] Listed ${payrolls.length} payroll records for ${req.user.email}`);
+    const runs = await PayrollRun.find()
+      .populate('createdBy', 'name email')
+      .populate('approvedBy', 'name email')
+      .populate('disbursementConfirmedBy', 'name email')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      count: payrolls.length,
-      total,
-      page,
-      data: payrolls.map(p => p.toJSON())
+      count: runs.length,
+      data: runs.map(r => r.toJSON())
     });
   } catch (error) {
-    logger.error(`[Payroll Controller Error] getMonthlyPayrolls failed: ${error.message}`, { stack: error.stack });
+    logger.error(`[Payroll Controller Error] getPayrollRuns failed: ${error.message}`, { stack: error.stack });
     next(error);
   }
 };
 
-// @desc    Get current logged-in employee's monthly salary records (pay slips)
-// @route   GET /api/v1/payroll/my
-// @access  Private (All authenticated users)
-const getMyPayroll = async (req, res, next) => {
+// @desc    Get per-employee breakdown for a specific payroll run
+// @route   GET /api/v1/payroll/:runId or GET /api/payroll/:runId
+// @access  Private (SuperAdmin, Finance Admin, HR Admin)
+const getPayrollRunById = async (req, res, next) => {
   try {
-    let filter = { user_id: req.user._id };
-    if (req.query.month) {
-      filter.month = req.query.month;
+    const caller = req.user;
+    const isSuperAdmin = caller.role === 'superadmin';
+    const isFinanceOrHR = caller.role === 'admin' && (caller.department === 'finance' || caller.department === 'hr');
+
+    if (!isSuperAdmin && !isFinanceOrHR) {
+      return res.status(403).json({
+        success: false,
+        message: 'Permission denied: You do not have access to payroll run details.'
+      });
     }
 
-    const payrolls = await Payroll.find(filter).sort({ month: -1 });
+    const run = await PayrollRun.findOne({ runId: req.params.runId })
+      .populate('createdBy', 'name email')
+      .populate('approvedBy', 'name email');
+
+    if (!run) {
+      return res.status(404).json({ success: false, message: 'Payroll run not found' });
+    }
+
+    const payslips = await Payroll.find({ runId: req.params.runId })
+      .populate('user_id', 'name email employeeId department designation');
 
     res.status(200).json({
       success: true,
-      count: payrolls.length,
-      data: payrolls.map(p => p.toJSON())
+      run: run.toJSON(),
+      count: payslips.length,
+      payslips: payslips.map(p => p.toJSON())
     });
   } catch (error) {
-    logger.error(`[Payroll Controller Error] getMyPayroll failed: ${error.message}`, { stack: error.stack });
+    logger.error(`[Payroll Controller Error] getPayrollRunById failed: ${error.message}`, { stack: error.stack });
     next(error);
   }
 };
 
-// @desc    Get specific payroll record by ID
-// @route   GET /api/v1/payroll/:id
-// @access  Private (SuperAdmin, HR Admin, HR Supervisor, or Self)
-const getPayrollById = async (req, res, next) => {
+// @desc    Get logged in user's own payslips
+// @route   GET /api/v1/payroll/me or GET /api/payroll/me
+// @access  Private (All authenticated staff)
+const getMyPayslips = async (req, res, next) => {
   try {
-    const payroll = await Payroll.findById(req.params.id)
-      .populate('user_id', 'name email role department designation');
+    const payslips = await Payroll.find({
+      user_id: req.user._id,
+      status: { $in: ['approved', 'paid', 'disbursed'] }
+    }).sort({ month: -1 });
 
-    if (!payroll) {
+    res.status(200).json({
+      success: true,
+      count: payslips.length,
+      data: payslips.map(p => p.toJSON())
+    });
+  } catch (error) {
+    logger.error(`[Payroll Controller Error] getMyPayslips failed: ${error.message}`, { stack: error.stack });
+    next(error);
+  }
+};
+
+// @desc    Get logged in user's specific month payslip
+// @route   GET /api/v1/payroll/me/:month/payslip or GET /api/payroll/me/:month/payslip
+// @access  Private (Self)
+const getMyMonthPayslip = async (req, res, next) => {
+  try {
+    const { month } = req.params;
+    const payslip = await Payroll.findOne({
+      user_id: req.user._id,
+      month,
+      status: { $in: ['approved', 'paid', 'disbursed'] }
+    });
+
+    if (!payslip) {
       return res.status(404).json({
         success: false,
-        message: 'Payroll record not found.'
-      });
-    }
-
-    const isSelf = payroll.user_id?._id.toString() === req.user._id.toString();
-    if (!canManagePayroll(req.user) && !isSelf) {
-      return res.status(403).json({
-        success: false,
-        message: 'Permission denied: You can only view your own payroll records.'
+        message: `No approved payslip found for month ${month}.`
       });
     }
 
     res.status(200).json({
       success: true,
-      data: payroll.toJSON()
+      data: payslip.toJSON()
     });
   } catch (error) {
-    logger.error(`[Payroll Controller Error] getPayrollById failed: ${error.message}`, { stack: error.stack });
+    logger.error(`[Payroll Controller Error] getMyMonthPayslip failed: ${error.message}`, { stack: error.stack });
+    next(error);
+  }
+};
+
+// @desc    Approve payroll run
+// @route   POST /api/v1/payroll/:runId/approve or POST /api/payroll/:runId/approve
+// @access  Private (SuperAdmin only)
+const approvePayrollRun = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Permission denied: Superadmin only.' });
+    }
+
+    const run = await PayrollRun.findOne({ runId: req.params.runId });
+    if (!run) {
+      return res.status(404).json({ success: false, message: 'Payroll run not found' });
+    }
+
+    if (run.status === 'approved' || run.status === 'disbursed') {
+      return res.status(400).json({ success: false, message: `Payroll run is already ${run.status}.` });
+    }
+
+    const beforeState = run.toJSON();
+
+    run.status = 'approved';
+    run.approvedBy = req.user._id;
+    run.approvedAt = new Date();
+    await run.save();
+
+    await Payroll.updateMany({ runId: run.runId }, { status: 'approved' });
+
+    await recordAuditLog({
+      actor: req.user,
+      action: 'APPROVE_PAYROLL_RUN',
+      resource: 'payroll',
+      resourceId: run.runId,
+      before: beforeState,
+      after: run.toJSON(),
+      req
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Payroll run ${run.runId} has been approved.`,
+      run: run.toJSON()
+    });
+  } catch (error) {
+    logger.error(`[Payroll Controller Error] approvePayrollRun failed: ${error.message}`, { stack: error.stack });
+    next(error);
+  }
+};
+
+// @desc    Reverse payroll run
+// @route   POST /api/v1/payroll/:runId/reverse or POST /api/payroll/:runId/reverse
+// @access  Private (SuperAdmin only)
+const reversePayrollRun = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Permission denied: Superadmin only.' });
+    }
+
+    const { reason } = req.body;
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({ success: false, message: 'A mandatory reversal reason must be provided.' });
+    }
+
+    const run = await PayrollRun.findOne({ runId: req.params.runId });
+    if (!run) {
+      return res.status(404).json({ success: false, message: 'Payroll run not found' });
+    }
+
+    if (run.status === 'reversed') {
+      return res.status(400).json({ success: false, message: 'This payroll run is already reversed.' });
+    }
+
+    const beforeState = run.toJSON();
+
+    run.status = 'reversed';
+    run.reversedBy = req.user._id;
+    run.reversedAt = new Date();
+    run.reversalReason = reason.trim();
+    await run.save();
+
+    await Payroll.updateMany({ runId: run.runId }, { status: 'reversed', remarks: `Reversed: ${reason}` });
+
+    await recordAuditLog({
+      actor: req.user,
+      action: 'REVERSE_PAYROLL_RUN',
+      resource: 'payroll',
+      resourceId: run.runId,
+      before: beforeState,
+      after: run.toJSON(),
+      req
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Payroll run ${run.runId} has been reversed.`,
+      run: run.toJSON()
+    });
+  } catch (error) {
+    logger.error(`[Payroll Controller Error] reversePayrollRun failed: ${error.message}`, { stack: error.stack });
     next(error);
   }
 };
 
 module.exports = {
-  processMonthlyPayroll,
-  getMonthlyPayrolls,
-  getMyPayroll,
-  getPayrollById
+  triggerPayrollRun,
+  getPayrollRuns,
+  getPayrollRunById,
+  getMyPayslips,
+  getMyMonthPayslip,
+  approvePayrollRun,
+  reversePayrollRun
 };

@@ -4,9 +4,10 @@ const logger = require('../utils/logger');
 // Strict rate limiter for sensitive authentication endpoints (Login, Google OAuth)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30, // Limit each IP to 30 requests per window
+  max: process.env.NODE_ENV === 'production' ? 30 : 500, // Higher limit in dev/test for test runners
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => process.env.NODE_ENV === 'test',
   handler: (req, res) => {
     logger.warn(`[Rate Limit Exceeded] IP ${req.ip} exceeded auth rate limit on ${req.method} ${req.originalUrl}`);
     res.status(429).json({
@@ -19,9 +20,10 @@ const authLimiter = rateLimit({
 // General API rate limiter for DDoS and flood protection across all endpoints
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // Limit each IP to 300 API requests per 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 300 : 5000, // Higher limit in dev/test for test runners
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => process.env.NODE_ENV === 'test',
   handler: (req, res) => {
     logger.warn(`[Rate Limit Exceeded] IP ${req.ip} exceeded API rate limit on ${req.method} ${req.originalUrl}`);
     res.status(429).json({

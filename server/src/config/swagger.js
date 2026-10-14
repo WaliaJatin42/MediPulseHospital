@@ -1,44 +1,49 @@
 const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerPaths = require('./swaggerPaths');
 
 const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'MediPulse Hospital User & Attendance Management API v1',
+      title: 'MediPulse Hospital Management System API v1',
       version: '1.0.0',
-      description: 'User Management System Backend API v1 featuring 8 Department Admins, HR Hiring & Cross-Department Authority, Password Reset APIs, and 9-Hour Work Policy Punch-In/Punch-Out Attendance System.',
+      description: 'Enterprise Hospital Management Backend API across 7 Core Departments (HR, Pharmacy, Security, Finance, Support, Legal, Technical) and Clinical Units (Doctors, Nursing, Laboratory, Radiology) with 3-tier hierarchy (Admin, Supervisor, User), Superadmin hospital-wide governance, Firebase Cloud Messaging (FCM) push notifications, 9-Hour work policy, automated payroll, and tamper-evident SHA-256 hash-chained audit logging.',
       contact: {
-        name: 'MediPulse Hospital IT Support',
-        email: 'support@medipulse.hospital'
+        name: 'MediPulse Hospital IT Systems',
+        email: 'systems@medipulse.hospital'
       }
     },
     servers: [
       {
         url: 'http://localhost:5000',
-        description: 'Local Express Development Server'
+        description: 'Local Development Server'
       }
     ],
+    security: [
+      { bearerAuth: [] }
+    ],
     tags: [
-      {
-        name: 'Authentication',
-        description: 'Endpoints for staff login, Google OAuth 2.0, token refresh, and logout'
-      },
-      {
-        name: 'User Profile',
-        description: 'Endpoint for fetching details of logged-in user via token'
-      },
-      {
-        name: 'User Management',
-        description: 'CRUD operations & Password Reset for staff (SuperAdmin can reset password for any user; HR Admin cross-dept; Dept Admin for their department/self)'
-      },
-      {
-        name: 'Attendance Management',
-        description: 'Dedicated Punch-In and Punch-Out APIs with 9-Hour Work Policy tracking (Visible to Superadmin, HR Admin, & HR Supervisors)'
-      },
-      {
-        name: 'Health Check',
-        description: 'System operational status checks'
-      }
+      { name: 'Authentication', description: 'Session lifecycle, password reset, MFA, and Google OAuth' },
+      { name: 'Superadmin Governance', description: 'Superadmin creation, multi-superadmin protection, and hospital governance' },
+      { name: 'User Management', description: 'Staff accounts, creator-scoping vs department-scoping, transfers, and reassignment' },
+      { name: 'Notifications & FCM Push', description: 'In-app notification inbox, channel preferences, and Firebase Cloud Messaging push dispatch' },
+      { name: 'Attendance & Anti-Fraud', description: 'Punch-in/out, GPS geofencing, hardware device binding, anomalies, and corrections' },
+      { name: 'Shifts & Rosters', description: 'Midnight-crossing shifts, staff rosters, and peer swap workflows' },
+      { name: 'Leave Management', description: 'Leave quotas, applications, multi-tier approvals, and audited balance adjustments' },
+      { name: 'Payroll Policies & Calculation', description: 'Versioned policies, attendance-based calculation, locked runs, and payslips' },
+      { name: 'Salary Extras & Components', description: 'Salary increments, bonuses, advances with auto-installments, reimbursements, and arrears' },
+      { name: 'Calendar & Working Days', description: 'Holidays, weekly-offs, and dynamic working days calculation for payroll & attendance' },
+      { name: 'Audit Logging', description: 'Tamper-evident append-only SHA-256 cryptographic hash-chained audit trail' },
+      { name: 'System & Engineering', description: 'Hospital timezone/currency configuration, health readiness probes, and distributed job locks' },
+      { name: 'Department Management', description: 'Hospital department registry and staff rosters' },
+      { name: 'HR Module', description: 'Hiring pipeline, employee documents, offboarding, and analytics' },
+      { name: 'Pharmacy Module', description: 'Medicine catalog, stock batches, FEFO dispensing, alerts, and POs' },
+      { name: 'Security Module', description: 'Visitor control, incidents, shift rosters, patrols, vehicles, and alerts' },
+      { name: 'Finance Module', description: 'Budgets, expense claims, vendor payments, payroll review, and ledger' },
+      { name: 'Support Module', description: 'Service tickets, housekeeping schedules, inventory, and transport' },
+      { name: 'Legal Module', description: 'Contracts, review requests, litigation, compliance licenses, and confidential docs' },
+      { name: 'Technical Module', description: 'IT/biomedical assets, maintenance, downtime, licenses, and access requests' },
+      { name: 'Health Check', description: 'Runtime server operational status' }
     ],
     components: {
       securitySchemes: {
@@ -55,260 +60,17 @@ const options = {
           description: 'Authorization header Bearer token (Format: `Bearer <token>`)'
         }
       }
-    },
-    paths: {
-      '/api/v1/health': {
-        get: {
-          summary: 'Check API server health status',
-          tags: ['Health Check'],
-          responses: {
-            200: {
-              description: 'Server is healthy and responsive',
-              content: {
-                'application/json': {
-                  example: {
-                    status: 'ok',
-                    message: 'Hospital User Management API v1 is running'
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      '/api/v1/auth/login': {
-        post: {
-          summary: 'Authenticate superadmin, HR admin, department admin, supervisor, or staff',
-          tags: ['Authentication'],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                example: {
-                  email: 'superadmin@hospital.com',
-                  password: 'SuperAdmin123!'
-                }
-              }
-            }
-          },
-          responses: {
-            200: {
-              description: 'Login successful',
-              content: {
-                'application/json': {
-                  example: {
-                    success: true,
-                    message: 'Login successful',
-                    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-                    user: {
-                      _id: '65c8f1e29a34b2811a45d0f1',
-                      name: 'Chief Medical Director',
-                      email: 'superadmin@hospital.com',
-                      role: 'superadmin',
-                      department: 'executive'
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      '/api/v1/users/{id}/reset-password': {
-        post: {
-          summary: 'Reset Password (SuperAdmin resets any user; HR Admin cross-dept; Dept Admin resets their department staff or self)',
-          tags: ['User Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          parameters: [
-            { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                example: {
-                  newPassword: 'NewPassword123!'
-                }
-              }
-            }
-          },
-          responses: {
-            200: {
-              description: 'Password reset successfully',
-              content: {
-                'application/json': {
-                  example: {
-                    success: true,
-                    message: 'Password reset successfully for user doctor@hospital.com'
-                  }
-                }
-              }
-            },
-            403: { description: 'Permission denied' },
-            404: { description: 'User not found' }
-          }
-        }
-      },
-      '/api/v1/attendance/punch-in': {
-        post: {
-          summary: 'Punch-In / Start 9-hour work shift',
-          tags: ['Attendance Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          requestBody: {
-            content: {
-              'application/json': {
-                example: {
-                  workMode: 'on_site',
-                  notes: 'Morning shift arrival'
-                }
-              }
-            }
-          },
-          responses: {
-            201: {
-              description: 'Punched in successfully',
-              content: {
-                'application/json': {
-                  example: {
-                    success: true,
-                    message: 'Punched in successfully. 9-hour shift started.',
-                    attendance: {
-                      _id: '65c8f1e29a34b2811a45d0a1',
-                      date: '2026-10-08',
-                      punchIn: '2026-10-08T09:00:00.000Z',
-                      status: 'punched_in',
-                      shiftRequiredHours: 9
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      '/api/v1/attendance/punch-out': {
-        post: {
-          summary: 'Punch-Out / Calculate 9-hour shift work duration and status',
-          tags: ['Attendance Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          responses: {
-            200: {
-              description: 'Punched out successfully',
-              content: {
-                'application/json': {
-                  example: {
-                    success: true,
-                    message: 'Punched out successfully. 9-hour shift completed (9.2 hrs).',
-                    attendance: {
-                      _id: '65c8f1e29a34b2811a45d0a1',
-                      punchIn: '2026-10-08T09:00:00.000Z',
-                      punchOut: '2026-10-08T18:12:00.000Z',
-                      totalWorkHours: 9.2,
-                      isShiftCompleted: true,
-                      status: 'present'
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      '/api/v1/attendance': {
-        get: {
-          summary: 'Get attendance records (Visible to Superadmin, HR Admin, HR Supervisors & Dept Admins)',
-          tags: ['Attendance Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          parameters: [
-            { in: 'query', name: 'department', schema: { type: 'string' }, description: 'Filter by department (hr, pharmacy, technical, security, support, legal, accounts)' },
-            { in: 'query', name: 'date', schema: { type: 'string' }, description: 'Filter by date (YYYY-MM-DD)' },
-            { in: 'query', name: 'status', schema: { type: 'string' }, description: 'Filter by status (present, late, half_day, short_hours, punched_in)' }
-          ],
-          responses: {
-            200: {
-              description: 'Attendance list',
-              content: {
-                'application/json': {
-                  example: {
-                    success: true,
-                    count: 1,
-                    data: [
-                      {
-                        _id: '65c8f1e29a34b2811a45d0a1',
-                        user: { name: 'Michael Chang', email: 'pharmacist@hospital.com', department: 'pharmacy' },
-                        date: '2026-10-08',
-                        punchIn: '2026-10-08T09:00:00.000Z',
-                        punchOut: '2026-10-08T18:00:00.000Z',
-                        totalWorkHours: 9,
-                        isShiftCompleted: true,
-                        status: 'present'
-                      }
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      '/api/v1/users': {
-        post: {
-          summary: 'Create user (HR Admin & HR Supervisor can create users under ANY department admin; Dept Admin creates for their department)',
-          tags: ['User Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                example: {
-                  name: 'Michael Chang',
-                  email: 'pharmacist@hospital.com',
-                  password: 'User123!',
-                  role: 'user',
-                  designation: 'Pharmacist',
-                  department: 'pharmacy',
-                  phone: '+1 (555) 000-0203'
-                }
-              }
-            }
-          },
-          responses: {
-            201: { description: 'User created successfully' }
-          }
-        },
-        get: {
-          summary: 'List users (HR Admin & HR Supervisor see all users across all departments; Dept Admin sees their department)',
-          tags: ['User Management'],
-          security: [{ cookieAuth: [] }, { bearerAuth: [] }],
-          responses: {
-            200: {
-              description: 'Users list',
-              content: {
-                'application/json': {
-                  example: {
-                    success: true,
-                    count: 1,
-                    data: [
-                      {
-                        _id: '65c8f1e29a34b2811a45d0f2',
-                        name: 'Michael Chang',
-                        email: 'pharmacist@hospital.com',
-                        role: 'user',
-                        department: 'pharmacy'
-                      }
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   apis: ['./src/routes/*.js', './src/config/swagger.js', './server.js']
 };
 
 const swaggerSpec = swaggerJsdoc(options);
+
+// Merge comprehensive path definitions with pre-filled requestBody schemas and parameters
+swaggerSpec.paths = {
+  ...swaggerSpec.paths,
+  ...swaggerPaths
+};
 
 module.exports = swaggerSpec;
