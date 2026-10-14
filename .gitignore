@@ -1,23 +1,11 @@
 # Dependencies
 node_modules/
-**/node_modules/
 
 # Environment variables
 .env
 .env.*
 !.env.example
 
-# Production builds
-dist/
-build/
-
 # Logs
 logs/
 *.log
-npm-debug.log*
-
-# OS & IDE
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
