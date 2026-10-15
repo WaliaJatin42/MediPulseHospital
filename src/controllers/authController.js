@@ -442,7 +442,7 @@ const googleCallback = async (req, res, next) => {
     setAuthCookies(res, accessToken, refreshToken);
 
     if (process.env.CLIENT_URL) {
-      return res.redirect(`${process.env.CLIENT_URL}/oauth-callback?status=success`);
+      return res.redirect(`${process.env.CLIENT_URL}/?status=success`);
     }
 
     res.status(200).json({

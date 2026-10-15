@@ -1,4 +1,5 @@
 # MediPulse Hospital Management System
+
 ## Master UI Mockup Showcase: Complete Functional Screen Designs
 
 This document presents the complete set of **13 high-fidelity visual UI mockup screens** covering every operational functionality and user role across the MediPulse Hospital Management System, based on the **[FIGMA_ADMIN_DASHBOARD_SPECIFICATION.md](file:///d:/user_management_system/docs/FIGMA_ADMIN_DASHBOARD_SPECIFICATION.md)**.
@@ -8,6 +9,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### Table of Contents
+
 1. [Authentication, Branch Selection & TOTP MFA](#1-authentication-branch-selection--totp-mfa)
 2. [Patient Registration, Duplicate Prevention & Thermal Wristband](#2-patient-registration-duplicate-prevention--thermal-wristband)
 3. [OPD Check-In & Public Waiting Room Digital Signage](#3-opd-check-in--public-waiting-room-digital-signage)
@@ -25,6 +27,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 1. Authentication, Branch Selection & TOTP MFA
+
 ![Authentication & TOTP MFA](file:///d:/user_management_system/docs/mockups/login_mfa_screen_1792042760220.jpg)
 
 - **File:** `docs/mockups/login_mfa_screen_1792042760220.jpg`
@@ -38,6 +41,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 2. Patient Registration, Duplicate Prevention & Thermal Wristband
+
 ![Patient Registration & Wristband](file:///d:/user_management_system/docs/mockups/patient_registration_intake_1792042786357.jpg)
 
 - **File:** `docs/mockups/patient_registration_intake_1792042786357.jpg`
@@ -50,6 +54,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 3. OPD Check-In & Public Waiting Room Digital Signage
+
 ![OPD Check-In & Display](file:///d:/user_management_system/docs/mockups/opd_queue_display_1792042812311.jpg)
 
 - **File:** `docs/mockups/opd_queue_display_1792042812311.jpg`
@@ -63,6 +68,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 4. Superadmin Multi-Branch Executive Governance Hub
+
 ![Superadmin Executive Dashboard](file:///d:/user_management_system/docs/mockups/superadmin_dashboard_mockup_1792042421459.jpg)
 
 - **File:** `docs/mockups/superadmin_dashboard_mockup_1792042421459.jpg`
@@ -75,24 +81,26 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 5. Doctor Clinical Consultation, EMR & CPOE Workspace
+
 ![Doctor Clinical EMR Workspace](file:///d:/user_management_system/docs/mockups/doctor_emr_mockup_1792042447513.jpg)
 
 - **File:** `docs/mockups/doctor_emr_mockup_1792042447513.jpg`
 - **Key Functionalities:**
   - **Sticky Patient Banner:** Photo, Name, UHID, 45Y/Male, Blood Group O+, bold crimson **Allergy Pill** (`Penicillin, Sulfa`), and Bed (`ICU Bed 04`).
   - **3-Column Clinical Split View:**
-    - *Column 1:* Chronic conditions (Hypertension, Diabetes) and longitudinal timeline.
-    - *Column 2:* Structured SOAP Note Editor, objective vitals banner with auto-calculated BMI (`BP 120/80`, `SpO2 98%`, `BMI 24.2`), Assessment with ICD-10 diagnosis (`K35.80 Acute Appendicitis`), Treatment Plan, and green **Digitally Signed & Locked (SHA-256 Hash)** seal.
-    - *Column 3:* CPOE Orders & E-Prescriptions with orange **Clinical Decision Support (CDS) Allergy Verification Alert**.
+    - _Column 1:_ Chronic conditions (Hypertension, Diabetes) and longitudinal timeline.
+    - _Column 2:_ Structured SOAP Note Editor, objective vitals banner with auto-calculated BMI (`BP 120/80`, `SpO2 98%`, `BMI 24.2`), Assessment with ICD-10 diagnosis (`K35.80 Acute Appendicitis`), Treatment Plan, and green **Digitally Signed & Locked (SHA-256 Hash)** seal.
+    - _Column 3:_ CPOE Orders & E-Prescriptions with orange **Clinical Decision Support (CDS) Allergy Verification Alert**.
 
 ---
 
 ### 6. Inpatient Ward Nursing Station & Bed Census Matrix
+
 ![Inpatient Ward Bed Census](file:///d:/user_management_system/docs/mockups/nurse_ward_matrix_1792042471207.jpg)
 
 - **File:** `docs/mockups/nurse_ward_matrix_1792042471207.jpg`
 - **Key Functionalities:**
-  - Top Ward Census metrics: *Ward Census 28/32 (87.5% Occupancy)*, *Meds Due in Next 2h (42 Doses)*, *Pending Orders (8)*, *Discharges (3)*.
+  - Top Ward Census metrics: _Ward Census 28/32 (87.5% Occupancy)_, _Meds Due in Next 2h (42 Doses)_, _Pending Orders (8)_, _Discharges (3)_.
   - Interactive Visual Bed Matrix organized by Room (301 to 308) with color-coded status tiles:
     - **Blue:** Occupied with patient & doctor info.
     - **Green:** Available with checkmark.
@@ -103,6 +111,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 7. Diagnostic Laboratory: Accessioning & Critical Panic Value Alerts
+
 ![Laboratory Panic Value Result Entry](file:///d:/user_management_system/docs/mockups/lab_results_panic_alert_1792042910838.jpg)
 
 - **File:** `docs/mockups/lab_results_panic_alert_1792042910838.jpg`
@@ -116,6 +125,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 8. Radiology Modality Worklist & Diagnostic DICOM PACS Viewer
+
 ![Radiology PACS Viewer](file:///d:/user_management_system/docs/mockups/radiology_pacs_viewer_1792042940508.jpg)
 
 - **File:** `docs/mockups/radiology_pacs_viewer_1792042940508.jpg`
@@ -126,6 +136,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 9. Pharmacy Dispensing & Smart FEFO Batch Picker
+
 ![Pharmacy Dispensing FEFO](file:///d:/user_management_system/docs/mockups/pharmacy_dispensing_fefo_1792042965344.jpg)
 
 - **File:** `docs/mockups/pharmacy_dispensing_fefo_1792042965344.jpg`
@@ -140,6 +151,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 10. Inpatient Real-Time Billing, Cashier & TPA Insurance Workspace
+
 ![Inpatient Billing & TPA Workspace](file:///d:/user_management_system/docs/mockups/billing_tpa_workspace_1792042521268.jpg)
 
 - **File:** `docs/mockups/billing_tpa_workspace_1792042521268.jpg`
@@ -151,6 +163,7 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 11. Emergency Trauma Triage Board & Ambulance GPS Fleet
+
 ![Emergency Trauma Triage](file:///d:/user_management_system/docs/mockups/emergency_triage_board_1792042496506.jpg)
 
 - **File:** `docs/mockups/emergency_triage_board_1792042496506.jpg`
@@ -163,17 +176,19 @@ All images are saved locally in the repository at [docs/mockups/](file:///d:/use
 ---
 
 ### 12. HR 9-Hour Biometric Attendance & Shift Roster Scheduler
+
 ![HR Attendance & Shift Roster](file:///d:/user_management_system/docs/mockups/hr_attendance_roster_1792042835454.jpg)
 
 - **File:** `docs/mockups/hr_attendance_roster_1792042835454.jpg`
 - **Key Functionalities:**
-  - Top status summary: *Present: 582 (94.2%)*, *Late Mark (>09:15 AM Grace Expired): 24*, *Half-Day: 6*, *On Leave: 12*.
+  - Top status summary: _Present: 582 (94.2%)_, _Late Mark (>09:15 AM Grace Expired): 24_, _Half-Day: 6_, _On Leave: 12_.
   - **9-Hour Policy Attendance Table (Left):** Employee ID, Staff Name, Department, Punch In (`08:58 AM`), Punch Out (`18:12 PM`), Total Duration (`9h 14m`), Green status pill `Present (9h+)`, and GPS Geofence verification (`Central Campus Geofence Verified`).
   - **Weekly Shift Roster Calendar Matrix (Right):** Drag-and-drop roster grid showing color-coded shifts: Cyan for Morning (`07:00-15:30`), Violet for Evening (`15:00-23:30`), Dark Navy with moon icon for **Night Shift [Midnight-Crossing] (`23:00-07:30`)**, and Grey for Weekly Off.
 
 ---
 
 ### 13. Automated Monthly Payroll Run Wizard & Payslip Ledger
+
 ![Automated Monthly Payroll Wizard](file:///d:/user_management_system/docs/mockups/payroll_run_wizard_1792042861632.jpg)
 
 - **File:** `docs/mockups/payroll_run_wizard_1792042861632.jpg`
