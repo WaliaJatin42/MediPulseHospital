@@ -57,10 +57,19 @@ export default function HRDashboard({ currentUser, onLogout, activeBranch, onSwi
           { _id: "4", name: "Sunita Roy", position: "Billing Executive", department: "finance", stage: "hired", appliedDate: "2026-10-08" }
         ]);
       } else {
-        setHires(hiresList);
+        const mapped = hiresList.map((h) => ({
+          _id: h._id,
+          name: h.candidateName || h.name,
+          position: h.designation || h.position || "Medical Staff",
+          department: h.department,
+          stage: h.stage || "applied",
+          appliedDate: h.createdAt ? h.createdAt.slice(0, 10) : (h.appliedDate || "2026-10-14"),
+          offeredSalary: h.offeredSalary || h.expectedSalary
+        }));
+        setHires(mapped);
       }
     } catch (err) {
-      console.error("Failed to load HR data:", err);
+      console.warn("Notice: Using fallback HR hiring candidates pipeline:", err.message);
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +81,12 @@ export default function HRDashboard({ currentUser, onLogout, activeBranch, onSwi
 
   const handleStageChange = async (hireId, newStage) => {
     try {
-      await dashboardApi.hr.updateHireStage(hireId, newStage).catch(() => {});
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(hireId);
+      if (isMongoId) {
+        await dashboardApi.hr.updateHireStage(hireId, newStage).catch((err) => {
+          console.warn("Backend update notice:", err.message);
+        });
+      }
       setHires((prev) =>
         prev.map((h) => (h._id === hireId ? { ...h, stage: newStage } : h))
       );
@@ -85,11 +99,39 @@ export default function HRDashboard({ currentUser, onLogout, activeBranch, onSwi
   const handleAddCandidate = async (e) => {
     e.preventDefault();
     try {
-      await dashboardApi.hr.createHire(candidateForm).catch(() => {});
-      setHires((prev) => [
-        { ...candidateForm, _id: Date.now().toString(), appliedDate: new Date().toISOString() },
-        ...prev
-      ]);
+      let created = null;
+      try {
+        const payload = {
+          candidateName: candidateForm.name,
+          email: candidateForm.email,
+          phone: candidateForm.phone,
+          department: candidateForm.department,
+          designation: candidateForm.position,
+          stage: candidateForm.stage || "applied",
+          offeredSalary: candidateForm.expectedSalary
+        };
+        const res = await dashboardApi.hr.createHire(payload);
+        created = res?.data;
+      } catch (err) {
+        console.warn("Backend candidate registration skipped, persisting to active session:", err.message);
+      }
+
+      const newCandidate = created
+        ? {
+            _id: created._id,
+            name: created.candidateName || candidateForm.name,
+            position: created.designation || candidateForm.position,
+            department: created.department || candidateForm.department,
+            stage: created.stage || candidateForm.stage || "applied",
+            appliedDate: new Date().toISOString().slice(0, 10)
+          }
+        : {
+            ...candidateForm,
+            _id: Date.now().toString(),
+            appliedDate: new Date().toISOString().slice(0, 10)
+          };
+
+      setHires((prev) => [newCandidate, ...prev]);
       setFeedback({ type: "success", text: `Candidate ${candidateForm.name} added to pipeline.` });
       setShowAddHireModal(false);
       setCandidateForm({

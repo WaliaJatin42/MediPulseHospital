@@ -13,11 +13,32 @@ import ClinicalDashboard from "./departments/ClinicalDashboard";
 import { Crown, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const resolveUserPortal = (user) => {
+  if (!user) return "superadmin";
+  if (user.role === "superadmin") return "superadmin";
+  if (user.role === "doctor" || user.role === "nurse" || user.clinicalRole) return "clinical";
+
+  const dept = (user.department || "").toLowerCase().trim();
+  const desig = (user.designation || "").toLowerCase().trim();
+
+  if (dept === "hr" || dept.includes("hr") || dept.includes("human resource") || desig.includes("hr")) return "hr";
+  if (dept.includes("pharm")) return "pharmacy";
+  if (dept.includes("sec")) return "security";
+  if (dept.includes("fin") || dept.includes("account")) return "finance";
+  if (dept.includes("supp")) return "support";
+  if (dept.includes("leg")) return "legal";
+  if (dept.includes("tech") || dept.includes("it")) return "technical";
+  if (dept.includes("doctor") || dept.includes("nurs") || dept.includes("clin")) return "clinical";
+
+  return "superadmin";
+};
+
 export default function RoleDashboard({ currentUser, onLogout, activeBranch, onSwitchBranch }) {
   const isSuperadmin = currentUser?.role === "superadmin";
-  const [previewRole, setPreviewRole] = useState(currentUser?.role || "superadmin");
+  const defaultPortal = resolveUserPortal(currentUser);
+  const [previewRole, setPreviewRole] = useState(defaultPortal);
 
-  const effectiveRole = previewRole || currentUser?.role || "superadmin";
+  const effectiveRole = previewRole || defaultPortal;
 
   const renderDashboard = () => {
     const commonProps = {

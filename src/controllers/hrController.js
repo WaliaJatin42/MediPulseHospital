@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Hire = require('../models/hr/Hire');
 const Leave = require('../models/hr/Leave');
 const Holiday = require('../models/hr/Holiday');
@@ -71,12 +72,19 @@ const createHire = async (req, res, next) => {
 // @access  Private (SuperAdmin, HR Admin, HR Supervisor)
 const getHires = async (req, res, next) => {
   try {
-    if (!canManageHR(req.user)) {
-      return res.status(403).json({ success: false, message: 'Permission denied: HR personnel only.' });
+    if (!canManageHR(req.user) && req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+      return res.status(403).json({ success: false, message: 'Permission denied: HR personnel or department administrators only.' });
     }
 
     let filter = {};
-    if (req.user.role !== 'superadmin') {
+    if (req.user.role !== 'superadmin' && !isHRDepartment(req.user)) {
+      filter = {
+        $or: [
+          { createdBy: req.user._id },
+          { department: (req.user.department || '').toLowerCase() }
+        ]
+      };
+    } else if (req.user.role !== 'superadmin' && req.user.role === 'supervisor') {
       filter.createdBy = req.user._id;
     }
 
@@ -100,6 +108,10 @@ const updateHireStage = async (req, res, next) => {
   try {
     if (!canManageHR(req.user)) {
       return res.status(403).json({ success: false, message: 'Permission denied: HR personnel only.' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Candidate record not found (invalid ID format)' });
     }
 
     const hire = await Hire.findById(req.params.id);

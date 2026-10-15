@@ -282,7 +282,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   logger.info(`[Server] MediPulse API running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   logger.info(`[Server] Swagger Documentation available at http://localhost:${PORT}/api-docs`);
   

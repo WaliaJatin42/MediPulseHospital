@@ -59,11 +59,29 @@ const hasCapability = (user, capability) => {
   if (!user) return false;
   if (user.role === ROLES.SUPERADMIN) return true;
 
-  const userDept = (user.department || '').toLowerCase();
+  const rawDept = (user.department || '').toLowerCase().trim();
+  let normalizedDept = rawDept;
+  if (rawDept === 'hr' || rawDept.includes('human resource') || rawDept.includes('hr')) {
+    normalizedDept = 'hr';
+  } else if (rawDept.includes('pharm')) {
+    normalizedDept = 'pharmacy';
+  } else if (rawDept.includes('sec')) {
+    normalizedDept = 'security';
+  } else if (rawDept.includes('fin') || rawDept.includes('account')) {
+    normalizedDept = 'finance';
+  } else if (rawDept.includes('supp')) {
+    normalizedDept = 'support';
+  } else if (rawDept.includes('leg')) {
+    normalizedDept = 'legal';
+  } else if (rawDept.includes('tech') || rawDept.includes('it')) {
+    normalizedDept = 'technical';
+  }
+
   const allowed = CAPABILITIES[capability] || [];
 
   if (allowed.includes(user.role)) return true;
-  if (allowed.includes(`${userDept}:${user.role}`)) return true;
+  if (allowed.includes(`${normalizedDept}:${user.role}`)) return true;
+  if (allowed.includes(`${rawDept}:${user.role}`)) return true;
 
   return false;
 };
@@ -73,9 +91,18 @@ const hasCapability = (user, capability) => {
  */
 const isHRDepartment = (user) => {
   if (!user) return false;
-  const dept = (user.department || '').toLowerCase();
-  const desig = (user.designation || '').toLowerCase();
-  return dept === DEPARTMENTS.HR || desig.includes('hr');
+  if (user.role === ROLES.SUPERADMIN) return true;
+  const dept = (user.department || '').toLowerCase().trim();
+  const desig = (user.designation || '').toLowerCase().trim();
+  return (
+    dept === DEPARTMENTS.HR ||
+    dept === 'human resource' ||
+    dept === 'human resources' ||
+    dept.includes('human resource') ||
+    dept.includes('hr') ||
+    desig.includes('hr') ||
+    desig.includes('human resource')
+  );
 };
 
 module.exports = {

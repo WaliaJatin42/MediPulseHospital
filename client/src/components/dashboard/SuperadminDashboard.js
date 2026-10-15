@@ -1284,9 +1284,21 @@ export default function SuperadminDashboard({ currentUser, onLogout, activeBranc
                               <p className="text-xs text-slate-500">{currentDept.description}</p>
                             </div>
                           </div>
-                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs px-3 py-1">
-                            Operational Status: Optimal
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {onSwitchPersona && (
+                              <Button
+                                size="sm"
+                                onClick={() => onSwitchPersona(currentDept.id)}
+                                className="h-8 text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white gap-1.5 shadow-xs"
+                              >
+                                <span>Launch {currentDept.name} Portal</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs px-3 py-1">
+                              Optimal
+                            </Badge>
+                          </div>
                         </div>
 
                         {/* Department KPI Stats */}

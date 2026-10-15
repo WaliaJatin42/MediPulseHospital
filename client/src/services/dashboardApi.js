@@ -28,7 +28,19 @@ async function request(endpoint, options = {}) {
   };
 
   try {
-    const res = await fetch(url, config);
+    let res = await fetch(url, config);
+
+    // If transient proxy 500/502/503 happens during dev server reload, attempt a quick retry
+    if ((res.status === 502 || res.status === 503 || res.status === 500) && options.retry !== false) {
+      await new Promise((r) => setTimeout(r, 600));
+      try {
+        const retryRes = await fetch(url, config);
+        if (retryRes.ok) {
+          res = retryRes;
+        }
+      } catch (_) {}
+    }
+
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
@@ -41,7 +53,9 @@ async function request(endpoint, options = {}) {
 
     return data;
   } catch (err) {
-    console.error(`[Dashboard API Error] ${options.method || 'GET'} ${endpoint}:`, err);
+    if (!options.silent) {
+      console.warn(`[Dashboard API] ${options.method || 'GET'} ${endpoint} (${err.status || 500}): ${err.message}`);
+    }
     throw err;
   }
 }
