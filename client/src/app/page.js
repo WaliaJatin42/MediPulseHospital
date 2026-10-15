@@ -81,9 +81,20 @@ export default function LoginPage() {
     const token = getToken();
     if (user && token) {
       setCurrentUser(user);
-    } else if (typeof window !== "undefined") {
+    }
+    if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("status") === "success" || params.get("oauth") === "success") {
+      const urlResetToken = params.get("resetToken") || params.get("token");
+
+      if (urlResetToken) {
+        setResetToken(urlResetToken);
+        setShowResetModal(true);
+        setStatusMessage({
+          type: "info",
+          text: "Password reset link recognized from email. Please enter your new password below."
+        });
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (params.get("status") === "success" || params.get("oauth") === "success") {
         authApi.getMe().then((res) => {
           const u = res.user || res.data;
           if (u) {
@@ -234,7 +245,8 @@ export default function LoginPage() {
         type: "success",
         text: res.message || `Password reset instructions dispatched to ${forgotEmail}.`
       });
-      if (res.resetToken) {
+      // In dev fallback mode (if email credentials aren't set in .env), open reset modal directly
+      if (!res.emailSent && res.resetToken) {
         setResetToken(res.resetToken);
         setShowResetModal(true);
       }

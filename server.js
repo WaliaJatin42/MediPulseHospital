@@ -1,5 +1,5 @@
 require('dotenv').config();
-// Server entry point - reloads environment configuration
+// Server entry point - reloaded with SMTP and OAuth services
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');

@@ -13,6 +13,7 @@ const {
 
 const Session = require('../models/Session');
 const { generateSecret, verifyTOTP, getOtpAuthUri, generateRecoveryCodes } = require('../utils/totp');
+const { sendPasswordResetEmail } = require('../services/emailService');
 
 // @desc    Authenticate hospital staff & get tokens (with lockout and MFA challenge)
 // @route   POST /api/v1/auth/login or POST /api/auth/login
@@ -343,6 +344,13 @@ const forgotPassword = async (req, res, next) => {
 
     logger.info(`[Auth Controller] Password reset token generated for ${user.email}`);
 
+    // Dispatch branded password reset email via superadmin email account
+    const emailResult = await sendPasswordResetEmail({
+      to: user.email,
+      resetToken,
+      userName: user.name
+    });
+
     await recordAuditLog({
       actor: { _id: user._id, name: user.name, role: user.role, department: user.department },
       action: 'FORGOT_PASSWORD_REQUESTED',
@@ -353,7 +361,12 @@ const forgotPassword = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Password reset token generated. In a production environment, this is dispatched via email.',
+      message: emailResult.success
+        ? `Password reset link has been dispatched to ${user.email}.`
+        : (emailResult.reason === 'SMTP_CREDENTIALS_MISSING'
+          ? 'Password reset link generated. (Configure SMTP_PASS in .env to deliver via Gmail)'
+          : `Password reset link generated (${emailResult.error || 'delivery pending'}).`),
+      emailSent: emailResult.success,
       resetToken: process.env.NODE_ENV !== 'production' ? resetToken : undefined
     });
   } catch (error) {
