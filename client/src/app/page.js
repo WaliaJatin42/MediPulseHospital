@@ -40,6 +40,7 @@ import {
   setToken,
   setStoredUser
 } from "@/services/authApi";
+import RoleDashboard from "@/components/dashboard/RoleDashboard";
 
 export default function LoginPage() {
   // Form State
@@ -325,6 +326,18 @@ export default function LoginPage() {
   const filteredEndpoints = selectedApiCategory === "All"
     ? AUTH_ENDPOINTS_CATALOG
     : AUTH_ENDPOINTS_CATALOG.filter(e => e.category.toLowerCase().includes(selectedApiCategory.toLowerCase()) || selectedApiCategory.toLowerCase().includes(e.category.toLowerCase()));
+
+  // Render Role-Based Executive Dashboard when logged in
+  if (currentUser) {
+    return (
+      <RoleDashboard
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        activeBranch={activeBranch}
+        onSwitchBranch={handleSwitchBranch}
+      />
+    );
+  }
 
   return (
     <div className="h-screen max-h-screen overflow-hidden flex flex-col justify-between bg-white text-slate-800 relative selection:bg-blue-100 selection:text-blue-900">
