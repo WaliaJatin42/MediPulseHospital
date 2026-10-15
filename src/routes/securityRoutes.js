@@ -34,10 +34,10 @@ router.use(protect);
  *     tags: [Security Module]
  */
 router.route('/visitors')
-  .post(authorize('superadmin', 'admin', 'supervisor', 'user'), checkInVisitor)
-  .get(getVisitors);
+  .post(authorize('superadmin', 'security:visitors:manage'), checkInVisitor)
+  .get(authorize('superadmin', 'security:visitors:read'), getVisitors);
 
-router.patch('/visitors/:id/checkout', authorize('superadmin', 'admin', 'supervisor', 'user'), checkOutVisitor);
+router.patch('/visitors/:id/checkout', authorize('superadmin', 'security:visitors:manage'), checkOutVisitor);
 
 /**
  * @openapi
@@ -50,10 +50,10 @@ router.patch('/visitors/:id/checkout', authorize('superadmin', 'admin', 'supervi
  *     tags: [Security Module]
  */
 router.route('/incidents')
-  .post(reportIncident)
-  .get(getIncidents);
+  .post(authorize('superadmin', 'security:incidents:manage', 'security:visitors:read'), reportIncident)
+  .get(authorize('superadmin', 'security:incidents:manage', 'security:visitors:read'), getIncidents);
 
-router.patch('/incidents/:id', authorize('superadmin', 'admin', 'supervisor'), updateIncident);
+router.patch('/incidents/:id', authorize('superadmin', 'security:incidents:manage'), updateIncident);
 
 /**
  * @openapi
@@ -75,8 +75,8 @@ router.get('/rosters/me', getMyRoster);
  *     tags: [Security Module]
  */
 router.route('/rosters')
-  .post(authorize('superadmin', 'admin', 'supervisor'), createSecurityRoster)
-  .get(authorize('superadmin', 'admin', 'supervisor'), getSecurityRosters);
+  .post(authorize('superadmin', 'security:incidents:manage'), createSecurityRoster)
+  .get(authorize('superadmin', 'security:incidents:manage'), getSecurityRosters);
 
 /**
  * @openapi
@@ -89,8 +89,8 @@ router.route('/rosters')
  *     tags: [Security Module]
  */
 router.route('/patrols')
-  .post(authorize('superadmin', 'admin', 'supervisor', 'user'), recordPatrol)
-  .get(getPatrolLogs);
+  .post(authorize('superadmin', 'security:visitors:manage'), recordPatrol)
+  .get(authorize('superadmin', 'security:visitors:read'), getPatrolLogs);
 
 /**
  * @openapi
@@ -103,8 +103,8 @@ router.route('/patrols')
  *     tags: [Security Module]
  */
 router.route('/vehicles')
-  .post(authorize('superadmin', 'admin', 'supervisor', 'user'), logVehicle)
-  .get(getVehicles);
+  .post(authorize('superadmin', 'security:vehicles:manage'), logVehicle)
+  .get(authorize('superadmin', 'security:vehicles:manage', 'security:visitors:read'), getVehicles);
 
 /**
  * @openapi
@@ -113,7 +113,7 @@ router.route('/vehicles')
  *     summary: View access control door scans
  *     tags: [Security Module]
  */
-router.get('/access-logs', authorize('superadmin', 'admin', 'supervisor'), getAccessLogs);
+router.get('/access-logs', authorize('superadmin', 'security:incidents:manage'), getAccessLogs);
 
 /**
  * @openapi
@@ -126,7 +126,7 @@ router.get('/access-logs', authorize('superadmin', 'admin', 'supervisor'), getAc
  *     tags: [Security Module]
  */
 router.route('/alerts')
-  .post(authorize('superadmin', 'admin', 'supervisor'), broadcastAlert)
-  .get(getSecurityAlerts);
+  .post(authorize('superadmin', 'security:alerts:broadcast'), broadcastAlert)
+  .get(authorize('superadmin', 'security:visitors:read', 'security:alerts:broadcast'), getSecurityAlerts);
 
 module.exports = router;

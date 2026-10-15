@@ -28,19 +28,19 @@ router.use(protect);
  * @openapi
  * /api/v1/pharmacy/medicines:
  *   post:
- *     summary: Add medicine to pharmacy catalog (Pharmacy Admin only)
+ *     summary: Add medicine to pharmacy catalog
  *     tags: [Pharmacy Module]
  *   get:
  *     summary: List medicines catalog
  *     tags: [Pharmacy Module]
  */
 router.route('/medicines')
-  .post(authorize('superadmin', 'admin'), createMedicine)
-  .get(getMedicines);
+  .post(authorize('superadmin', 'pharmacy:medicines:write'), createMedicine)
+  .get(authorize('superadmin', 'pharmacy:medicines:read'), getMedicines);
 
 router.route('/medicines/:id')
-  .patch(authorize('superadmin', 'admin'), updateMedicine)
-  .delete(authorize('superadmin', 'admin'), deleteMedicine);
+  .patch(authorize('superadmin', 'pharmacy:medicines:write'), updateMedicine)
+  .delete(authorize('superadmin', 'pharmacy:medicines:write'), deleteMedicine);
 
 /**
  * @openapi
@@ -53,8 +53,8 @@ router.route('/medicines/:id')
  *     tags: [Pharmacy Module]
  */
 router.route('/stock')
-  .post(authorize('superadmin', 'admin', 'supervisor'), receiveStockBatch)
-  .get(getStockBatches);
+  .post(authorize('superadmin', 'pharmacy:batches:manage'), receiveStockBatch)
+  .get(authorize('superadmin', 'pharmacy:medicines:read'), getStockBatches);
 
 /**
  * @openapi
@@ -63,7 +63,7 @@ router.route('/stock')
  *     summary: Dispense medicine (deducts stock, logs who dispensed)
  *     tags: [Pharmacy Module]
  */
-router.post('/dispense', authorize('superadmin', 'admin', 'supervisor', 'user'), dispenseMedicine);
+router.post('/dispense', authorize('superadmin', 'pharmacy:dispense'), dispenseMedicine);
 
 /**
  * @openapi
@@ -72,7 +72,7 @@ router.post('/dispense', authorize('superadmin', 'admin', 'supervisor', 'user'),
  *     summary: Get low stock alerts below reorder level
  *     tags: [Pharmacy Module]
  */
-router.get('/alerts/low-stock', getLowStockAlerts);
+router.get('/alerts/low-stock', authorize('superadmin', 'pharmacy:medicines:read'), getLowStockAlerts);
 
 /**
  * @openapi
@@ -81,7 +81,7 @@ router.get('/alerts/low-stock', getLowStockAlerts);
  *     summary: Get expiring stock batches within 90 days
  *     tags: [Pharmacy Module]
  */
-router.get('/alerts/expiring', getExpiringAlerts);
+router.get('/alerts/expiring', authorize('superadmin', 'pharmacy:medicines:read'), getExpiringAlerts);
 
 /**
  * @openapi
@@ -94,8 +94,8 @@ router.get('/alerts/expiring', getExpiringAlerts);
  *     tags: [Pharmacy Module]
  */
 router.route('/suppliers')
-  .post(authorize('superadmin', 'admin'), createSupplier)
-  .get(getSuppliers);
+  .post(authorize('superadmin', 'pharmacy:orders:manage'), createSupplier)
+  .get(authorize('superadmin', 'pharmacy:medicines:read'), getSuppliers);
 
 /**
  * @openapi
@@ -108,10 +108,10 @@ router.route('/suppliers')
  *     tags: [Pharmacy Module]
  */
 router.route('/purchase-orders')
-  .post(authorize('superadmin', 'admin', 'supervisor'), createPurchaseOrder)
-  .get(getPurchaseOrders);
+  .post(authorize('superadmin', 'pharmacy:orders:manage'), createPurchaseOrder)
+  .get(authorize('superadmin', 'pharmacy:orders:manage', 'pharmacy:medicines:read'), getPurchaseOrders);
 
-router.patch('/purchase-orders/:id/approve', authorize('superadmin', 'admin'), approvePurchaseOrder);
+router.patch('/purchase-orders/:id/approve', authorize('superadmin', 'pharmacy:orders:manage'), approvePurchaseOrder);
 
 /**
  * @openapi
@@ -120,7 +120,7 @@ router.patch('/purchase-orders/:id/approve', authorize('superadmin', 'admin'), a
  *     summary: Record medication return to vendor
  *     tags: [Pharmacy Module]
  */
-router.post('/returns', authorize('superadmin', 'admin', 'supervisor'), recordReturn);
+router.post('/returns', authorize('superadmin', 'pharmacy:batches:manage'), recordReturn);
 
 /**
  * @openapi
@@ -129,15 +129,15 @@ router.post('/returns', authorize('superadmin', 'admin', 'supervisor'), recordRe
  *     summary: Record damaged or expired medicine wastage
  *     tags: [Pharmacy Module]
  */
-router.post('/wastage', authorize('superadmin', 'admin', 'supervisor'), recordWastage);
+router.post('/wastage', authorize('superadmin', 'pharmacy:batches:manage'), recordWastage);
 
 /**
  * @openapi
  * /api/v1/pharmacy/controlled-log:
  *   get:
- *     summary: Controlled substances register (Pharmacy Admin audit log)
+ *     summary: Controlled substances register (Pharmacy audit log)
  *     tags: [Pharmacy Module]
  */
-router.get('/controlled-log', authorize('superadmin', 'admin'), getControlledSubstancesLog);
+router.get('/controlled-log', authorize('superadmin', 'pharmacy:dispense', 'pharmacy:medicines:read'), getControlledSubstancesLog);
 
 module.exports = router;

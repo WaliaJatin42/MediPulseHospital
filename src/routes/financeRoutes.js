@@ -29,23 +29,23 @@ router.use(protect);
  * @openapi
  * /api/v1/finance/budgets:
  *   post:
- *     summary: Allocate department budget (Finance Admin only)
+ *     summary: Allocate department budget
  *     tags: [Finance Module]
  *   get:
  *     summary: View department budgets
  *     tags: [Finance Module]
  */
 router.route('/budgets')
-  .post(authorize('superadmin', 'admin'), createBudget)
-  .get(getBudgets);
+  .post(authorize('superadmin', 'finance:budgets:manage'), createBudget)
+  .get(authorize('superadmin', 'finance:budgets:read', 'finance:expenses:read'), getBudgets);
 
-router.patch('/budgets/:id', authorize('superadmin', 'admin'), updateBudget);
+router.patch('/budgets/:id', authorize('superadmin', 'finance:budgets:manage'), updateBudget);
 
 /**
  * @openapi
  * /api/v1/finance/expenses:
  *   post:
- *     summary: Submit operational expense claim (any staff)
+ *     summary: Submit operational expense claim
  *     tags: [Finance Module]
  *   get:
  *     summary: List department expense claims
@@ -53,9 +53,9 @@ router.patch('/budgets/:id', authorize('superadmin', 'admin'), updateBudget);
  */
 router.route('/expenses')
   .post(submitExpense)
-  .get(getExpenses);
+  .get(authorize('superadmin', 'finance:expenses:read'), getExpenses);
 
-router.patch('/expenses/:id/decision', authorize('superadmin', 'admin'), decideExpense);
+router.patch('/expenses/:id/decision', authorize('superadmin', 'finance:expenses:approve'), decideExpense);
 
 /**
  * @openapi
@@ -68,8 +68,8 @@ router.patch('/expenses/:id/decision', authorize('superadmin', 'admin'), decideE
  *     tags: [Finance Module]
  */
 router.route('/invoices')
-  .post(authorize('superadmin', 'admin', 'supervisor'), createInvoice)
-  .get(getInvoices);
+  .post(authorize('superadmin', 'finance:invoices:manage'), createInvoice)
+  .get(authorize('superadmin', 'finance:invoices:manage', 'finance:expenses:read'), getInvoices);
 
 /**
  * @openapi
@@ -82,8 +82,8 @@ router.route('/invoices')
  *     tags: [Finance Module]
  */
 router.route('/payments')
-  .post(authorize('superadmin', 'admin'), recordPayment)
-  .get(getPayments);
+  .post(authorize('superadmin', 'finance:invoices:manage'), recordPayment)
+  .get(authorize('superadmin', 'finance:invoices:manage', 'finance:expenses:read'), getPayments);
 
 /**
  * @openapi
@@ -92,16 +92,16 @@ router.route('/payments')
  *     summary: Read-only finance review of monthly payroll run
  *     tags: [Finance Module]
  */
-router.get('/payroll/:runId', reviewPayrollRun);
+router.get('/payroll/:runId', authorize('superadmin', 'finance:payroll:run', 'finance:budgets:read'), reviewPayrollRun);
 
 /**
  * @openapi
  * /api/v1/finance/payroll/{runId}/disbursement-confirm:
  *   post:
- *     summary: Confirm payroll disbursement and release funds (Finance Admin approval gate)
+ *     summary: Confirm payroll disbursement and release funds
  *     tags: [Finance Module]
  */
-router.post('/payroll/:runId/disbursement-confirm', authorize('superadmin', 'admin'), confirmPayrollDisbursement);
+router.post('/payroll/:runId/disbursement-confirm', authorize('superadmin', 'finance:payroll:run'), confirmPayrollDisbursement);
 
 /**
  * @openapi
@@ -110,7 +110,7 @@ router.post('/payroll/:runId/disbursement-confirm', authorize('superadmin', 'adm
  *     summary: View general accounting ledger
  *     tags: [Finance Module]
  */
-router.get('/ledger', getLedger);
+router.get('/ledger', authorize('superadmin', 'finance:budgets:read', 'finance:expenses:read'), getLedger);
 
 /**
  * @openapi
@@ -123,8 +123,8 @@ router.get('/ledger', getLedger);
  *     tags: [Finance Module]
  */
 router.route('/reconciliations')
-  .post(authorize('superadmin', 'admin'), createReconciliation)
-  .get(getReconciliations);
+  .post(authorize('superadmin', 'finance:budgets:manage'), createReconciliation)
+  .get(authorize('superadmin', 'finance:budgets:read'), getReconciliations);
 
 /**
  * @openapi
@@ -133,7 +133,7 @@ router.route('/reconciliations')
  *     summary: Expense breakdown by category and department
  *     tags: [Finance Module]
  */
-router.get('/reports/expense-summary', getExpenseSummaryReport);
+router.get('/reports/expense-summary', authorize('superadmin', 'finance:expenses:read', 'finance:budgets:read'), getExpenseSummaryReport);
 
 /**
  * @openapi
@@ -142,7 +142,7 @@ router.get('/reports/expense-summary', getExpenseSummaryReport);
  *     summary: Budget vs Actual expenditure comparison
  *     tags: [Finance Module]
  */
-router.get('/reports/budget-vs-actual', getBudgetVsActualReport);
+router.get('/reports/budget-vs-actual', authorize('superadmin', 'finance:budgets:read'), getBudgetVsActualReport);
 
 /**
  * @openapi
@@ -151,6 +151,6 @@ router.get('/reports/budget-vs-actual', getBudgetVsActualReport);
  *     summary: Hospital-wide payroll cost trend report
  *     tags: [Finance Module]
  */
-router.get('/reports/payroll-cost', getPayrollCostReport);
+router.get('/reports/payroll-cost', authorize('superadmin', 'finance:payroll:run', 'finance:budgets:read'), getPayrollCostReport);
 
 module.exports = router;

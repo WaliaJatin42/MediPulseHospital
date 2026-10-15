@@ -18,8 +18,7 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/licenses/expiring', authorize('superadmin', 'admin', 'supervisor'), getExpiringLicenses);
-
+router.get('/licenses/expiring', authorize('superadmin', 'hr:hires:read', 'technical:licenses:manage'), getExpiringLicenses);
 
 /**
  * @openapi
@@ -32,10 +31,10 @@ router.get('/licenses/expiring', authorize('superadmin', 'admin', 'supervisor'),
  *     tags: [HR Module]
  */
 router.route('/hires')
-  .post(authorize('superadmin', 'admin', 'supervisor'), createHire)
-  .get(authorize('superadmin', 'admin', 'supervisor'), getHires);
+  .post(authorize('superadmin', 'hr:hires:write'), createHire)
+  .get(authorize('superadmin', 'hr:hires:read'), getHires);
 
-router.patch('/hires/:id', authorize('superadmin', 'admin', 'supervisor'), updateHireStage);
+router.patch('/hires/:id', authorize('superadmin', 'hr:hires:write'), updateHireStage);
 
 /**
  * @openapi
@@ -48,7 +47,7 @@ router.patch('/hires/:id', authorize('superadmin', 'admin', 'supervisor'), updat
  *     tags: [HR Module]
  */
 router.route('/holidays')
-  .post(authorize('superadmin', 'admin'), createHoliday)
+  .post(authorize('superadmin', 'hr:leaves:manage'), createHoliday)
   .get(getHolidays);
 
 /**
@@ -58,7 +57,7 @@ router.route('/holidays')
  *     summary: Attach staff documents (contracts, ID proofs, certificates)
  *     tags: [HR Module]
  */
-router.post('/employees/:id/documents', authorize('superadmin', 'admin', 'supervisor'), addEmployeeDocument);
+router.post('/employees/:id/documents', authorize('superadmin', 'hr:documents:manage'), addEmployeeDocument);
 
 /**
  * @openapi
@@ -67,7 +66,7 @@ router.post('/employees/:id/documents', authorize('superadmin', 'admin', 'superv
  *     summary: Initiate employee exit & clearance checklist
  *     tags: [HR Module]
  */
-router.post('/employees/:id/exit', authorize('superadmin', 'admin'), initiateOffboarding);
+router.post('/employees/:id/exit', authorize('superadmin', 'hr:offboarding:manage'), initiateOffboarding);
 
 /**
  * @openapi
@@ -76,7 +75,7 @@ router.post('/employees/:id/exit', authorize('superadmin', 'admin'), initiateOff
  *     summary: Hospital headcount breakdown by department and status
  *     tags: [HR Module]
  */
-router.get('/reports/headcount', authorize('superadmin', 'admin'), getHeadcountReport);
+router.get('/reports/headcount', authorize('superadmin', 'hr:attendance:manage', 'hr:hires:read'), getHeadcountReport);
 
 /**
  * @openapi
@@ -85,7 +84,7 @@ router.get('/reports/headcount', authorize('superadmin', 'admin'), getHeadcountR
  *     summary: Staff attrition and turnover report
  *     tags: [HR Module]
  */
-router.get('/reports/attrition', authorize('superadmin', 'admin'), getAttritionReport);
+router.get('/reports/attrition', authorize('superadmin', 'hr:attendance:manage', 'hr:hires:read'), getAttritionReport);
 
 /**
  * @openapi
@@ -94,6 +93,6 @@ router.get('/reports/attrition', authorize('superadmin', 'admin'), getAttritionR
  *     summary: 9-Hour shift attendance compliance report
  *     tags: [HR Module]
  */
-router.get('/reports/attendance-compliance', authorize('superadmin', 'admin'), getAttendanceComplianceReport);
+router.get('/reports/attendance-compliance', authorize('superadmin', 'hr:attendance:manage'), getAttendanceComplianceReport);
 
 module.exports = router;

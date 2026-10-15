@@ -30,7 +30,7 @@ const protect = async (req, res, next) => {
         });
       }
 
-      const user = await User.findById(decoded.id);
+      const user = await User.findById(decoded.id).populate('customRoles');
 
       if (!user) {
         logger.warn(`[Auth Middleware] Access denied: User for token ID ${decoded.id} no longer exists`);
@@ -49,7 +49,8 @@ const protect = async (req, res, next) => {
       }
 
       req.user = user;
-      logger.debug(`[Auth Middleware] Authenticated ${user.email} (${user.role}) for ${req.method} ${req.originalUrl}`);
+      req.user.effectivePermissions = await user.getEffectivePermissions();
+      logger.debug(`[Auth Middleware] Authenticated ${user.email} (${user.role}) with ${req.user.effectivePermissions.length} permissions for ${req.method} ${req.originalUrl}`);
       next();
     } catch (jwtError) {
       logger.warn(`[Auth Middleware] Access denied: Token invalid or expired (${jwtError.message}) for ${req.method} ${req.originalUrl}`);
@@ -65,7 +66,7 @@ const protect = async (req, res, next) => {
   }
 };
 
-const authorize = (...roles) => {
+const authorize = (...rolesOrPermissions) => {
   return (req, res, next) => {
     if (!req.user) {
       logger.warn(`[Authorize Middleware] Access denied: Unauthenticated request for restricted route ${req.method} ${req.originalUrl}`);
@@ -75,16 +76,45 @@ const authorize = (...roles) => {
       });
     }
 
-    if (!roles.includes(req.user.role)) {
-      logger.warn(`[Authorize Middleware] Access denied for user ${req.user.email} (Role: '${req.user.role}'). Allowed roles: [${roles.join(', ')}] on route ${req.method} ${req.originalUrl}`);
-      return res.status(403).json({
-        success: false,
-        message: `User role '${req.user.role}' is not authorized to perform this action`
-      });
+    // Superadmin always has full access
+    if (req.user.role === 'superadmin') {
+      return next();
     }
 
-    logger.debug(`[Authorize Middleware] Authorization granted for user ${req.user.email} (${req.user.role})`);
-    next();
+    const effective = req.user.effectivePermissions || [];
+    if (effective.includes('*')) {
+      return next();
+    }
+
+    // 1. Check if user's role matches
+    if (rolesOrPermissions.includes(req.user.role)) {
+      return next();
+    }
+
+    // 2. Check if user has an assigned custom role matching slug, name, or id
+    const customRoles = req.user.customRoles || req.user.roles || [];
+    const hasMatchingRole = customRoles.some(
+      (r) =>
+        rolesOrPermissions.includes(r.slug) ||
+        rolesOrPermissions.includes(r.name) ||
+        rolesOrPermissions.includes(r._id?.toString())
+    );
+    if (hasMatchingRole) {
+      return next();
+    }
+
+    // 3. Check if user possesses any of the required permissions
+    const hasMatchingPermission = rolesOrPermissions.some((p) => effective.includes(p));
+    if (hasMatchingPermission) {
+      return next();
+    }
+
+    logger.warn(`[Authorize Middleware] Access denied for user ${req.user.email} (Role: '${req.user.role}'). Required: [${rolesOrPermissions.join(', ')}] on route ${req.method} ${req.originalUrl}`);
+    return res.status(403).json({
+      success: false,
+      message: `Permission denied: Your assigned role does not grant permission to perform this action.`,
+      required: rolesOrPermissions
+    });
   };
 };
 

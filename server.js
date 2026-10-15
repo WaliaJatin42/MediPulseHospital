@@ -46,7 +46,7 @@ const exitRoutes = require('./src/routes/exitRoutes');
 const workLocationRoutes = require('./src/routes/workLocationRoutes');
 const deviceRoutes = require('./src/routes/deviceRoutes');
 const calendarRoutes = require('./src/routes/calendarRoutes');
-const clinicalRoutes = require('./src/routes/clinicalRoutes');
+const rbacRoutes = require('./src/routes/rbacRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const notificationPreferenceRoutes = require('./src/routes/notificationPreferenceRoutes');
 const notificationTemplateRoutes = require('./src/routes/notificationTemplateRoutes');
@@ -227,7 +227,8 @@ const mountRoutes = (prefix) => {
   app.use(`${prefix}/work-locations`, workLocationRoutes);
   app.use(`${prefix}/devices`, deviceRoutes);
   app.use(`${prefix}/calendar`, calendarRoutes);
-  app.use(`${prefix}/roles`, clinicalRoutes);
+  app.use(`${prefix}/rbac`, rbacRoutes);
+  app.use(`${prefix}/roles`, rbacRoutes);
   app.use(`${prefix}/notifications`, notificationRoutes);
   app.use(`${prefix}/notification-preferences`, notificationPreferenceRoutes);
   app.use(`${prefix}/notification-templates`, notificationTemplateRoutes);

@@ -38,6 +38,7 @@ const options = {
       { name: 'Clinical: Patient Portal', description: 'Dedicated patient auth audience (aud: patient_portal), OTP login, profile dashboard, and doctor-released diagnostic results' },
       { name: 'Clinical: FHIR R4 Facade', description: 'FHIR R4 interoperability resources (/fhir/Patient, /fhir/Encounter, /fhir/Observation)' },
       { name: 'Superadmin Governance', description: 'Superadmin creation, multi-superadmin protection, and hospital governance' },
+      { name: 'Role-Based Access Control (RBAC)', description: 'Granular permissions catalog, custom roles, permission matrix configuration, and user assignments' },
       { name: 'User Management', description: 'Staff accounts, creator-scoping vs department-scoping, transfers, and reassignment' },
       { name: 'Notifications & FCM Push', description: 'In-app notification inbox, channel preferences, and Firebase Cloud Messaging push dispatch' },
       { name: 'Attendance & Anti-Fraud', description: 'Punch-in/out, GPS geofencing, hardware device binding, anomalies, and corrections' },

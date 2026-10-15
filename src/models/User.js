@@ -58,6 +58,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    customRoles: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Role'
+      }
+    ],
+    roles: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Role'
+      }
+    ],
     designation: {
       type: String,
       trim: true,
@@ -281,6 +293,34 @@ const userSchema = new mongoose.Schema(
 userSchema.methods.matchPassword = async function (enteredPassword) {
   if (!this.passwordHash) return false;
   return await bcrypt.compare(enteredPassword, this.passwordHash);
+};
+
+// Compute and return effective permissions for this user solely from assigned roles
+userSchema.methods.getEffectivePermissions = async function () {
+  if (this.role === 'superadmin') {
+    return ['*'];
+  }
+
+  const permissionsSet = new Set();
+  const roleIds = [
+    ...(this.roles || []),
+    ...(this.customRoles || [])
+  ];
+
+  if (roleIds.length > 0) {
+    let roles = roleIds;
+    if (roles[0] && !roles[0].permissions) {
+      const Role = mongoose.model('Role');
+      roles = await Role.find({ _id: { $in: roleIds }, isActive: true });
+    }
+    roles.forEach((r) => {
+      if (r && r.permissions && Array.isArray(r.permissions)) {
+        r.permissions.forEach((p) => permissionsSet.add(p));
+      }
+    });
+  }
+
+  return Array.from(permissionsSet).sort();
 };
 
 // Sync isActive with status

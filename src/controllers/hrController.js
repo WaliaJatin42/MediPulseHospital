@@ -15,6 +15,16 @@ const { isHRDepartment } = require('../config/permissions');
 const canManageHR = (user) => {
   if (!user) return false;
   if (user.role === 'superadmin') return true;
+  const perms = user.effectivePermissions || [];
+  if (
+    perms.includes('*') ||
+    perms.includes('hr:hires:read') ||
+    perms.includes('hr:hires:write') ||
+    perms.includes('hr:leaves:read') ||
+    perms.includes('hr:leaves:manage')
+  ) {
+    return true;
+  }
   if ((user.role === 'admin' || user.role === 'supervisor') && isHRDepartment(user)) {
     return true;
   }
@@ -77,7 +87,7 @@ const getHires = async (req, res, next) => {
     }
 
     let filter = {};
-    if (req.user.role !== 'superadmin' && !isHRDepartment(req.user)) {
+    if (req.user.role !== 'superadmin' && !isHRDepartment(req.user) && !req.user.effectivePermissions?.includes('hr:hires:read') && !req.user.effectivePermissions?.includes('*')) {
       filter = {
         $or: [
           { createdBy: req.user._id },
